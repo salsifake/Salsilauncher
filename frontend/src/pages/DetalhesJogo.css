@@ -1,0 +1,8 @@
+.nota-geral { font-size: 1.5rem; font-weight: bold; }
+.review-section { margin-top: 3rem; border-top: 1px solid #424242; padding-top: 2rem; }
+.review-layout { display: flex; gap: 2rem; margin-top: 1rem; }
+.review-textarea { flex-grow: 1; height: 250px; background-color: #2d2d2d; border: 1px solid #424242; color: #ccc; padding: 1rem; font-size: 1rem; }
+.detailed-ratings { width: 300px; display: flex; flex-direction: column; gap: 1rem; }
+.rating-item { display: flex; justify-content: space-between; align-items: center; }
+.rating-item span { font-size: 1.1rem; }
+.save-button { margin-top: 1.5rem; padding: 0.8rem 1.5rem; font-size: 1rem; }

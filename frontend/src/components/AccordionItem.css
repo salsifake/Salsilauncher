@@ -1,0 +1,9 @@
+.accordion-header { display: flex; align-items: center; cursor: pointer; padding: 0.5rem 0; }
+.accordion-header .arrow { font-size: 0.6rem; margin-right: 0.75rem; transition: transform 0.2s ease-in-out; }
+.accordion-header .arrow.open { transform: rotate(90deg); }
+.accordion-header .collection-name { color: #ccc; font-size: 0.95rem; }
+.accordion-header:hover .collection-name { color: white; }
+.accordion-content { padding-left: 1.5rem; border-left: 1px solid #424242; margin-left: 5px; }
+.accordion-content .loading-jogos, .accordion-content .no-jogos { color: #777; font-size: 0.9rem; padding: 0.5rem 0; }
+.accordion-content .game-link { display: block; color: #9c9c9c; text-decoration: none; padding: 0.4rem 0; font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.accordion-content .game-link:hover { color: white; }

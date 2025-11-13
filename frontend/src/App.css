@@ -1,0 +1,6 @@
+/* frontend/src/App.css */
+body { margin: 0; font-family: sans-serif; background-color: #1e1e1e; color: #d4d4d4; }
+.app-layout { display: flex; }
+.main-content { flex-grow: 1; /* Faz esta área ocupar todo o espaço restante */ height: 100vh; overflow-y: auto; /* Adiciona scroll apenas a esta área */ }
+/* Estilos da biblioteca que estavam aqui foram movidos para um css próprio se necessário */
+.lista-jogos { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1.5rem; padding: 1.5rem; }

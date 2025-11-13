@@ -1,0 +1,10 @@
+.star-rating-container .star {
+    font-size: 1.8rem;
+    color: #555;
+    cursor: pointer;
+    transition: color 0.2s;
+  }
+  .star-rating-container .star:hover,
+  .star-rating-container .star.filled {
+    color: #ffc107;
+  }
