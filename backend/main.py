@@ -9,6 +9,9 @@ from pydantic import BaseModel, Field
 from typing import List, Optional
 from PIL import Image
 import random
+from backend.data.storage import salvar_arquivo_atomico, ler_json_seguro, remover_arquivo
+from pathlib import Path
+from fastapi.staticfiles import StaticFiles
 
 # --- MODELOS DE DADOS (FINAIS) ---
 class AvaliacaoDetalhada(BaseModel):
@@ -56,7 +59,7 @@ app = FastAPI(title="Salsilauncher API")
 DB_FILE = "jogos_db.json"
 
 # CORS Middleware
-origins = ["http://localhost:6969"]
+origins = ["http://localhost:8000"]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
@@ -66,8 +69,16 @@ app.add_middleware(
 )
 
 # Servir arquivos estáticos da pasta de mídia
-app.mount("/midia_launcher", StaticFiles(directory="midia_launcher"), name="midia")
 
+BASE_DIR = Path(__file__).resolve().parent
+MIDIA_DIR = BASE_DIR / "midia_launcher"
+
+if not MIDIA_DIR.exists():
+    print(f"[AVISO] Diretório de mídia não encontrado: {MIDIA_DIR}")
+else:
+    print(f"[OK] Servindo mídia a partir de: {MIDIA_DIR}")
+
+app.mount("/midia_launcher", StaticFiles(directory=MIDIA_DIR), name="midia")
     
 # Função de salvamento atômico
 def salvar_arquivo_atomico(path: str, dados):
@@ -89,40 +100,33 @@ def salvar_arquivo_atomico(path: str, dados):
         raise e
 
 # FUNÇÕES AUXILIARES DE BANCO DE DADOS
+
+# Jogos
+DB_FILE = "jogos_db.json"
 def salvar_jogos(jogos: List[Jogo]):
     dados_para_salvar = [jogo.dict() for jogo in jogos]
     salvar_arquivo_atomico(DB_FILE, dados_para_salvar)
 
+def carregar_jogos() -> List[Jogo]:
+    dados_brutos = ler_json_seguro(DB_FILE, default=[])
+    # se default ([]) veio, retornamos lista vazia; caso contrário, convertemos
+    return [Jogo(**data) for data in dados_brutos] if dados_brutos else []
+
+
+# Coleções
+
+COLECOES_DB_FILE = "colecoes_db.json"
 def salvar_colecoes(colecoes: List[Colecao]):
     dados_para_salvar = [c.dict() for c in colecoes]
     salvar_arquivo_atomico(COLECOES_DB_FILE, dados_para_salvar)
 
-def carregar_jogos() -> List[Jogo]:
-    if not os.path.exists(DB_FILE):
-        salvar_arquivo_atomico(DB_FILE, [])
-        return []
-    try:
-        with open(DB_FILE, "r", encoding="utf-8") as f:
-            dados_brutos = json.load(f)
-            return [Jogo(**data) for data in dados_brutos]
-    except json.JSONDecodeError:
-        return []
-
-    
-COLECOES_DB_FILE = "colecoes_db.json"
-
 def carregar_colecoes() -> List[Colecao]:
-    if not os.path.exists(COLECOES_DB_FILE):
-        # Cria uma coleção padrão "Jogar mais Tarde" se o arquivo não existir
+    dados_brutos = ler_json_seguro(COLECOES_DB_FILE, default=None)
+    if not dados_brutos:
         colecao_padrao = [Colecao(id="jogar-mais-tarde", nome="Jogar mais Tarde")]
         salvar_colecoes(colecao_padrao)
         return colecao_padrao
-    try:
-        with open(COLECOES_DB_FILE, "r", encoding="utf-8") as f:
-            dados_brutos = json.load(f)
-            return [Colecao(**data) for data in dados_brutos]
-    except json.JSONDecodeError:
-        return []
+    return [Colecao(**data) for data in dados_brutos]
 
 #  ENDPOINTS DA API
 
