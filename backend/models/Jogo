@@ -1,0 +1,53 @@
+from typing import List, Optional
+from uuid import uuid4
+from datetime import datetime
+from pydantic import BaseModel, Field
+from enum import Enum
+
+class StatusJogo(str, Enum):
+    NAO_JOGADO = "Não Jogado"
+    JOGANDO = "Jogando"
+    AGUARDANDO = "Aguardando"
+    DROPADO = "Dropado"
+    CONCLUIDO = "Concluído"
+
+class Link(BaseModel):
+    tipo: str
+    url: str
+
+class AvaliacaoDetalhada(BaseModel):
+    nota: Optional[float] = None
+    categorias: dict = Field(default_factory=dict)
+
+class Jogo(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid4()))
+    nome: str
+    caminho_executavel: str
+    caminho_pasta: str
+
+    tamanho_bytes: Optional[int] = None
+
+    imagem_capa: Optional[str] = None
+    imagem_fundo: Optional[str] = None
+    imagens_extras: List[str] = Field(default_factory=list)
+
+    descricao: Optional[str] = None
+    desenvolvedor: Optional[str] = None
+    studio: Optional[str] = None
+    engine: Optional[str] = None
+    versao: Optional[str] = None
+
+    links: List[Link] = Field(default_factory=list)
+
+    generos: List[str] = Field(default_factory=list)
+    tags: List[str] = Field(default_factory=list)
+
+    colecoes: List[str] = Field(default_factory=list)
+
+    tempo_jogado_segundos: int = 0
+    ultima_vez_jogado: Optional[datetime] = None
+
+    status: StatusJogo = StatusJogo.NAO_JOGADO
+
+    review_texto: Optional[str] = None
+    avaliacao_detalhada: Optional[AvaliacaoDetalhada] = None

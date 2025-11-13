@@ -9,50 +9,12 @@ from pydantic import BaseModel, Field
 from typing import List, Optional
 from PIL import Image
 import random
-from backend.data.storage import salvar_arquivo_atomico, ler_json_seguro, remover_arquivo
+from backend.data.storage import salvar_jogos, carregar_jogos, salvar_colecoes, carregar_colecoes
 from pathlib import Path
-from fastapi.staticfiles import StaticFiles
-
-# --- MODELOS DE DADOS (FINAIS) ---
-class AvaliacaoDetalhada(BaseModel):
-    gameplay: int = Field(default=0, ge=0, le=3)
-    graficos: int = Field(default=0, ge=0, le=2)
-    historia: int = Field(default=0, ge=0, le=2)
-    audio: int = Field(default=0, ge=0, le=2)
-    inovacao: int = Field(default=0, ge=0, le=1)
-    bonus: int = Field(default=0, ge=0, le=1)
-
-class Colecao(BaseModel):
-    id: str
-    nome: str
-    capa: Optional[str] = None
-    descricao: Optional[str] = None
-
-class Jogo(BaseModel):
-    id: int
-    nome: str
-    caminho_executavel: str
-    caminho_pasta: str
-    tamanho_gb: Optional[float] = None
-    imagem_capa: Optional[str] = None
-    imagem_fundo: Optional[str] = None
-    imagens_extras: List[str] = Field(default_factory=list)
-    descricao: Optional[str] = None
-    desenvolvedor: Optional[str] = None
-    studio: Optional[str] = None
-    engine: Optional[str] = None
-    versao: Optional[str] = None
-    links: List[str] = Field(default_factory=list)
-    genero: Optional[str] = None
-    tags: List[str] = Field(default_factory=list)
-    colecoes: List[str] = Field(default_factory=list)
-    tempo_jogado_segundos: int = 0
-    ultima_vez_jogado: Optional[str] = None
-    status: str = "Não Jogado"
-    zerado: bool = False
-    jogar_mais_tarde: bool = False
-    review_texto: Optional[str] = None
-    avaliacao_detalhada: Optional[AvaliacaoDetalhada] = None
+from backend.models.jogo import Jogo
+from backend.models.colecao import Colecao
+from backend.models.avaliacao import AvaliacaoDetalhada
+from backend.models.link import Link
 
 # --- CONFIGURAÇÃO DA APLICAÇÃO ---
 app = FastAPI(title="Salsilauncher API")
@@ -79,54 +41,6 @@ else:
     print(f"[OK] Servindo mídia a partir de: {MIDIA_DIR}")
 
 app.mount("/midia_launcher", StaticFiles(directory=MIDIA_DIR), name="midia")
-    
-# Função de salvamento atômico
-def salvar_arquivo_atomico(path: str, dados):
-    # cria um arquivo temporário na mesma pasta
-    dir_path = os.path.dirname(path) or "."
-    fd, temp_path = tempfile.mkstemp(dir=dir_path)
-    os.close(fd)
-
-    try:
-        # grava o JSON completo no arquivo temporário e substitui o arquivo antigo de forma atômica
-        with open(temp_path, "w", encoding="utf-8") as temp_file:
-            json.dump(dados, temp_file, indent=4, ensure_ascii=False)
-        shutil.move(temp_path, path)
-
-    except Exception as e:
-        # remove o temporário se algo der errado
-        if os.path.exists(temp_path):
-            os.remove(temp_path)
-        raise e
-
-# FUNÇÕES AUXILIARES DE BANCO DE DADOS
-
-# Jogos
-DB_FILE = "jogos_db.json"
-def salvar_jogos(jogos: List[Jogo]):
-    dados_para_salvar = [jogo.dict() for jogo in jogos]
-    salvar_arquivo_atomico(DB_FILE, dados_para_salvar)
-
-def carregar_jogos() -> List[Jogo]:
-    dados_brutos = ler_json_seguro(DB_FILE, default=[])
-    # se default ([]) veio, retornamos lista vazia; caso contrário, convertemos
-    return [Jogo(**data) for data in dados_brutos] if dados_brutos else []
-
-
-# Coleções
-
-COLECOES_DB_FILE = "colecoes_db.json"
-def salvar_colecoes(colecoes: List[Colecao]):
-    dados_para_salvar = [c.dict() for c in colecoes]
-    salvar_arquivo_atomico(COLECOES_DB_FILE, dados_para_salvar)
-
-def carregar_colecoes() -> List[Colecao]:
-    dados_brutos = ler_json_seguro(COLECOES_DB_FILE, default=None)
-    if not dados_brutos:
-        colecao_padrao = [Colecao(id="jogar-mais-tarde", nome="Jogar mais Tarde")]
-        salvar_colecoes(colecao_padrao)
-        return colecao_padrao
-    return [Colecao(**data) for data in dados_brutos]
 
 #  ENDPOINTS DA API
 
