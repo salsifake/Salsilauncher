@@ -1,8 +1,7 @@
 # backend/main.py
 
 import os
-import json
-import shutil
+import json, shutil, tempfile
 from fastapi import FastAPI, Body, HTTPException, File, UploadFile, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -69,15 +68,38 @@ app.add_middleware(
 # Servir arquivos estáticos da pasta de mídia
 app.mount("/midia_launcher", StaticFiles(directory="midia_launcher"), name="midia")
 
-# --- FUNÇÕES AUXILIARES DE BANCO DE DADOS ---
+    
+# Função de salvamento atômico
+def salvar_arquivo_atomico(path: str, dados):
+    # cria um arquivo temporário na mesma pasta
+    dir_path = os.path.dirname(path) or "."
+    fd, temp_path = tempfile.mkstemp(dir=dir_path)
+    os.close(fd)
+
+    try:
+        # grava o JSON completo no arquivo temporário e substitui o arquivo antigo de forma atômica
+        with open(temp_path, "w", encoding="utf-8") as temp_file:
+            json.dump(dados, temp_file, indent=4, ensure_ascii=False)
+        shutil.move(temp_path, path)
+
+    except Exception as e:
+        # remove o temporário se algo der errado
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
+        raise e
+
+# FUNÇÕES AUXILIARES DE BANCO DE DADOS
 def salvar_jogos(jogos: List[Jogo]):
     dados_para_salvar = [jogo.dict() for jogo in jogos]
-    with open(DB_FILE, "w", encoding="utf-8") as f:
-        json.dump(dados_para_salvar, f, indent=4)
+    salvar_arquivo_atomico(DB_FILE, dados_para_salvar)
+
+def salvar_colecoes(colecoes: List[Colecao]):
+    dados_para_salvar = [c.dict() for c in colecoes]
+    salvar_arquivo_atomico(COLECOES_DB_FILE, dados_para_salvar)
 
 def carregar_jogos() -> List[Jogo]:
     if not os.path.exists(DB_FILE):
-        salvar_jogos([])
+        salvar_arquivo_atomico(DB_FILE, [])
         return []
     try:
         with open(DB_FILE, "r", encoding="utf-8") as f:
@@ -85,13 +107,9 @@ def carregar_jogos() -> List[Jogo]:
             return [Jogo(**data) for data in dados_brutos]
     except json.JSONDecodeError:
         return []
+
     
 COLECOES_DB_FILE = "colecoes_db.json"
-
-def salvar_colecoes(colecoes: List[Colecao]):
-    dados_para_salvar = [c.dict() for c in colecoes]
-    with open(COLECOES_DB_FILE, "w", encoding="utf-8") as f:
-        json.dump(dados_para_salvar, f, indent=4)
 
 def carregar_colecoes() -> List[Colecao]:
     if not os.path.exists(COLECOES_DB_FILE):
@@ -105,7 +123,6 @@ def carregar_colecoes() -> List[Colecao]:
             return [Colecao(**data) for data in dados_brutos]
     except json.JSONDecodeError:
         return []
-
 
 #  ENDPOINTS DA API
 
