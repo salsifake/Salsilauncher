@@ -1,61 +1,74 @@
-# backend/data/storage.py
-import json
 import os
-import tempfile
-import shutil
-from typing import Any
+import json
+from typing import List, Any, Optional
 
-def salvar_arquivo_atomico(path: str, dados: Any, *, ensure_ascii: bool = False, indent: int = 4) -> None:
+from models.jogo import Jogo
+from models.colecao import Colecao
+
+
+# -----------------------------
+# Funções utilitárias
+# -----------------------------
+
+def salvar_arquivo_atomico(caminho: str, dados: Any):
     """
-    Salva 'dados' (serializáveis em JSON) no arquivo 'path' de forma atômica:
-    - escreve em um arquivo temporário na mesma pasta;
-    - depois substitui o original com move (atomic on most OS).
+    Salva um arquivo JSON de forma atômica para evitar corrupção
+    caso o programa seja interrompido durante escrita.
     """
-    dir_path = os.path.dirname(os.path.abspath(path)) or "."
-    os.makedirs(dir_path, exist_ok=True)
+    temp = caminho + ".tmp"
 
-    # mkstemp cria um fd aberto; fechamos para usar open normal
-    fd, tmp_path = tempfile.mkstemp(prefix=".tmp_", dir=dir_path)
-    os.close(fd)
+    with open(temp, "w", encoding="utf-8") as f:
+        json.dump(dados, f, indent=4, ensure_ascii=False)
 
-    try:
-        # gravar no temporário
-        with open(tmp_path, "w", encoding="utf-8") as f:
-            json.dump(dados, f, ensure_ascii=ensure_ascii, indent=indent)
-            f.flush()
-            os.fsync(f.fileno())  # garante escrita física quando possível
+    os.replace(temp, caminho)
 
-        # substituir (move) — em geral atômico na mesma filesystem
-        # shutil.move usa os.rename internamente quando possível
-        shutil.move(tmp_path, path)
-    except Exception:
-        # cleanup: tenta remover o arquivo temporário se existir
-        try:
-            if os.path.exists(tmp_path):
-                os.remove(tmp_path)
-        except Exception:
-            pass
-        raise
 
-def ler_json_seguro(path: str, default: Any = None) -> Any:
+def ler_json_seguro(caminho: str, default: Optional[Any] = None):
     """
-    Lê um JSON de forma segura:
-    - se o arquivo não existir -> retorna default
-    - se JSON estiver corrompido -> retorna default (não sobrescreve)
+    Lê um JSON com tratamento de erros.
+    Se o arquivo estiver corrompido ou não existir, retorna default.
     """
-    if not os.path.exists(path):
+    if not os.path.exists(caminho):
         return default
+
     try:
-        with open(path, "r", encoding="utf-8") as f:
+        with open(caminho, "r", encoding="utf-8") as f:
             return json.load(f)
-    except json.JSONDecodeError:
-        # arquivo corrompido — não sobrescrever automaticamente
+    except (json.JSONDecodeError, OSError):
         return default
 
-def remover_arquivo(path: str) -> None:
-    """Remove um arquivo se existir (silencioso)."""
-    try:
-        if os.path.exists(path):
-            os.remove(path)
-    except Exception:
-        pass
+
+# -----------------------------
+# Jogos
+# -----------------------------
+
+DB_FILE = "jogos_db.json"
+
+def salvar_jogos(jogos: List[Jogo]):
+    dados = [j.dict() for j in jogos]
+    salvar_arquivo_atomico(DB_FILE, dados)
+
+def carregar_jogos() -> List[Jogo]:
+    dados = ler_json_seguro(DB_FILE, default=[])
+    return [Jogo(**j) for j in dados]
+
+
+# -----------------------------
+# Coleções
+# -----------------------------
+
+COLECOES_DB_FILE = "colecoes_db.json"
+
+def salvar_colecoes(colecoes: List[Colecao]):
+    dados = [c.dict() for c in colecoes]
+    salvar_arquivo_atomico(COLECOES_DB_FILE, dados)
+
+def carregar_colecoes() -> List[Colecao]:
+    dados = ler_json_seguro(COLECOES_DB_FILE, default=None)
+
+    if not dados:
+        colecao_padrao = [Colecao(id="jogar-mais-tarde", nome="Jogar mais Tarde")]
+        salvar_colecoes(colecao_padrao)
+        return colecao_padrao
+
+    return [Colecao(**c) for c in dados]
