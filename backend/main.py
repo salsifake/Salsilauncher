@@ -16,7 +16,7 @@ from backend.models.colecao import Colecao
 from backend.models.avaliacao import AvaliacaoDetalhada
 from backend.models.link import Link
 
-# --- CONFIGURAÇÃO DA APLICAÇÃO ---
+# Inicialização do FastAPI
 app = FastAPI(title="Salsilauncher API")
 DB_FILE = "jogos_db.json"
 
@@ -30,15 +30,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Servir arquivos estáticos da pasta de mídia
-
+# Configuração do diretório de mídia
 BASE_DIR = Path(__file__).resolve().parent
 MIDIA_DIR = BASE_DIR / "midia_launcher"
 
-if not MIDIA_DIR.exists():
-    print(f"[AVISO] Diretório de mídia não encontrado: {MIDIA_DIR}")
-else:
-    print(f"[OK] Servindo mídia a partir de: {MIDIA_DIR}")
+# cria se estiver faltando
+MIDIA_DIR.mkdir(exist_ok=True)
 
 app.mount("/midia_launcher", StaticFiles(directory=MIDIA_DIR), name="midia")
 
@@ -120,18 +117,22 @@ async def upload_capa_jogo(jogo_id: int, file: UploadFile = File(...)):
     jogo_para_atualizar = next((j for j in jogos if j.id == jogo_id), None)
     if not jogo_para_atualizar:
         raise HTTPException(status_code=404, detail="Jogo não encontrado")
+    
+    caminho_fisico = MIDIA_DIR / f"{jogo_id}_capa.webp"
 
-    caminho_imagem = f"midia_launcher/{jogo_id}_capa.webp"
+    # caminho público (URL servida pelo FastAPI)
+    caminho_publico = f"/midia_launcher/{jogo_id}_capa.webp"
+
     try:
         img = Image.open(file.file)
         img.thumbnail((600, 900))
-        img.save(caminho_imagem, "webp", quality=85)
+        img.save(caminho_fisico, "webp", quality=85)
     except Exception:
         raise HTTPException(status_code=500, detail="Não foi possível processar a imagem.")
-    
-    jogo_para_atualizar.imagem_capa = caminho_imagem
-    salvar_jogos(jogos)
-    return {"status": "Capa atualizada com sucesso!", "caminho_imagem": caminho_imagem}
+
+    jogo_para_atualizar.imagem_capa = caminho_publico
+
+    return {"status": "Capa atualizada com sucesso!", "caminho_imagem": caminho_publico}
 
 @app.get("/jogos/{jogo_id}", response_model=Jogo)
 def obter_detalhes_do_jogo(jogo_id: int):
