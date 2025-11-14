@@ -15,6 +15,9 @@ from backend.models.jogo import Jogo
 from backend.models.colecao import Colecao
 from backend.models.avaliacao import AvaliacaoDetalhada
 from backend.models.link import Link
+from backend.utils.image_processing import save_webp_image
+from backend.data.paths import get_capa_path, get_fundo_path, get_extra_image_path
+
 
 # Inicialização do FastAPI
 app = FastAPI(title="Salsilauncher API")
@@ -39,100 +42,154 @@ MIDIA_DIR.mkdir(exist_ok=True)
 
 app.mount("/midia_launcher", StaticFiles(directory=MIDIA_DIR), name="midia")
 
-#  ENDPOINTS DA API
+#  --- ENDPOINTS DA API ---
 
 @app.get("/jogos", response_model=List[Jogo])
 def listar_jogos(q: Optional[str] = None, tags: Optional[str] = None):
-    """
-    Lista jogos com busca e filtro.
-    - q: termo de busca
-    - tags: string de tags separadas por vírgula (ex: "rpg,acao")
-    """
     jogos = carregar_jogos()
 
-    # Filtragem por Tags
+    # filtro por tags
     if tags:
-        tags_requisitadas = set(tags.lower().split(','))
+        tags_requisitadas = {t.strip().lower() for t in tags.split(",")}
         jogos = [
-            jogo for jogo in jogos if tags_requisitadas.issubset(set(t.lower() for t in jogo.tags))
+            jogo for jogo in jogos
+            if tags_requisitadas.issubset({t.lower() for t in jogo.tags})
         ]
 
-    # Busca por Texto com Pontuação
+    # busca por texto com prioridade
     if q:
-        resultados_com_pontuacao = []
-        termo_busca = q.lower()
+        termo = q.lower()
+        resultados = []
+
         for jogo in jogos:
-            pontuacao = 0
-            if termo_busca in jogo.nome.lower():
-                pontuacao += 10
-            if jogo.studio and termo_busca in jogo.studio.lower():
-                pontuacao += 5
-            if jogo.descricao and termo_busca in jogo.descricao.lower():
-                pontuacao += 1
+            score = 0
 
-            if pontuacao > 0:
-                resultados_com_pontuacao.append({"jogo": jogo, "pontuacao": pontuacao})
+            if termo in jogo.nome.lower():
+                score += 5
+            if any(termo in t.lower() for t in jogo.tags):
+                score += 3
+            if jogo.desenvolvedor and termo in jogo.desenvolvedor.lower():
+                score += 2
+            if jogo.studio and termo in jogo.studio.lower():
+                score += 1
+            if jogo.descricao and termo in jogo.descricao.lower():
+                score += 1
+            if any(termo in link.nome.lower() for link in jogo.links):
+                score += 1
 
-        # Ordena os resultados pela pontuação
-        resultados_ordenados = sorted(resultados_com_pontuacao, key=lambda x: x["pontuacao"], reverse=True)
-        return [item["jogo"] for item in resultados_ordenados]
+            if score > 0:
+                resultados.append((jogo, score))
 
+        resultados.sort(key=lambda x: x[1], reverse=True)
+        return [j for j, _ in resultados]
     return jogos
+
 
 @app.post("/scan")
 def escanear_pasta_por_jogos(caminho: str = Body(..., embed=True)):
-    jogos_atuais = carregar_jogos()
-    pastas_atuais = {jogo.caminho_pasta for jogo in jogos_atuais}
-    novos_jogos_encontrados = 0
+    """
+    Varre um diretório em busca de novas pastas contendo executáveis .exe.
+    Cria jogos automaticamente para qualquer pasta nova detectada.
+    """
+    if not os.path.isdir(caminho):
+        raise HTTPException(status_code=400, detail="Caminho inválido ou inexistente.")
 
-    for nome_pasta in os.listdir(caminho):
-        caminho_completo_pasta = os.path.join(caminho, nome_pasta)
-        if not os.path.isdir(caminho_completo_pasta) or caminho_completo_pasta in pastas_atuais:
-            continue
-        
-        executavel_encontrado = None
-        for sub_root, _, sub_files in os.walk(caminho_completo_pasta):
-            for arquivo in sub_files:
-                if arquivo.lower().endswith(".exe"):
-                    executavel_encontrado = os.path.join(sub_root, arquivo)
-                    break
-            if executavel_encontrado:
-                break
-        
-        if executavel_encontrado:
-            novo_id = max([j.id for j in jogos_atuais], default=0) + 1
-            novo_jogo = Jogo(id=novo_id, nome=nome_pasta, caminho_executavel=executavel_encontrado, caminho_pasta=caminho_completo_pasta)
-            jogos_atuais.append(novo_jogo)
-            pastas_atuais.add(caminho_completo_pasta)
-            novos_jogos_encontrados += 1
-    
-    if novos_jogos_encontrados > 0:
-        salvar_jogos(jogos_atuais)
+    jogos = carregar_jogos()
+    pastas_existentes = {j.caminho_pasta for j in jogos}
+    novos = []
 
-    return {"status": "Escaneamento concluído!", "novos_jogos_adicionados": novos_jogos_encontrados, "total_na_biblioteca": len(jogos_atuais)}
+    # Descobrir novas pastas
+    def descobrir_pastas_validas():
+        for nome in os.listdir(caminho):
+            pasta = os.path.join(caminho, nome)
+            if os.path.isdir(pasta) and pasta not in pastas_existentes:
+                yield pasta
+
+    # Encontrar executável na pasta
+    def encontrar_executavel(pasta):
+        for root, _, files in os.walk(pasta):
+            for f in files:
+                if f.lower().endswith(".exe"):
+                    return os.path.join(root, f)
+        return None
+
+    # Criar o objeto Jogo a partir da pasta
+    def criar_jogo_para_pasta(pasta, executavel, jogos):
+        novo_id = max((j.id for j in jogos), default=0) + 1
+        nome = os.path.basename(pasta)
+        return Jogo(
+            id=novo_id,
+            nome=nome,
+            caminho_executavel=executavel,
+            caminho_pasta=pasta
+        )
+
+    # Processar pastas novas
+    for pasta in descobrir_pastas_validas():
+        exe = encontrar_executavel(pasta)
+        if not exe:
+            continue  # ignorar pastas sem executável
+        jogo = criar_jogo_para_pasta(pasta, exe, jogos)
+        jogos.append(jogo)
+        novos.append(jogo)
+
+    # salvar se mudou
+    if novos:
+        salvar_jogos(jogos)
+
+    return {
+        "status": f"{len(novos)} jogos adicionados.",
+        "adicionados": [j.id for j in novos],
+        "total_biblioteca": len(jogos)
+    }
+
 
 @app.post("/jogos/{jogo_id}/capa", status_code=200)
 async def upload_capa_jogo(jogo_id: int, file: UploadFile = File(...)):
     jogos = carregar_jogos()
-    jogo_para_atualizar = next((j for j in jogos if j.id == jogo_id), None)
-    if not jogo_para_atualizar:
-        raise HTTPException(status_code=404, detail="Jogo não encontrado")
-    
-    caminho_fisico = MIDIA_DIR / f"{jogo_id}_capa.webp"
+    jogo = next((j for j in jogos if j.id == jogo_id), None)
 
-    # caminho público (URL servida pelo FastAPI)
-    caminho_publico = f"/midia_launcher/{jogo_id}_capa.webp"
+    if not jogo:
+        raise HTTPException(status_code=404, detail="Jogo não encontrado")
+
+    # Caminho unificado da capa
+    path_capa = get_capa_path(jogo_id)
 
     try:
-        img = Image.open(file.file)
-        img.thumbnail((600, 900))
-        img.save(caminho_fisico, "webp", quality=85)
-    except Exception:
-        raise HTTPException(status_code=500, detail="Não foi possível processar a imagem.")
+        saved_path = save_webp_image(file.file, path_capa)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao processar imagem: {e}")
 
-    jogo_para_atualizar.imagem_capa = caminho_publico
+    jogo.imagem_capa = saved_path.replace("\\", "/")
+    salvar_jogos(jogos)
 
-    return {"status": "Capa atualizada com sucesso!", "caminho_imagem": caminho_publico}
+    return {
+        "status": "Capa atualizada com sucesso!",
+        "caminho_imagem": jogo.imagem_capa
+    }
+
+@app.post("/jogos/{jogo_id}/fundo", status_code=200)
+async def upload_fundo_jogo(jogo_id: int, file: UploadFile = File(...)):
+    jogos = carregar_jogos()
+    jogo = next((j for j in jogos if j.id == jogo_id), None)
+
+    if not jogo:
+        raise HTTPException(status_code=404, detail="Jogo não encontrado")
+
+    caminho_fundo = get_fundo_path(jogo_id)
+
+    try:
+        saved_path = save_webp_image(file.file, caminho_fundo, size=(1920, 1080))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao processar imagem: {e}")
+
+    jogo.imagem_fundo = saved_path.replace("\\", "/")
+    salvar_jogos(jogos)
+
+    return {
+        "status": "Imagem de fundo atualizada!",
+        "caminho_imagem": jogo.imagem_fundo
+    }
 
 @app.get("/jogos/{jogo_id}", response_model=Jogo)
 def obter_detalhes_do_jogo(jogo_id: int):
@@ -147,28 +204,34 @@ def obter_detalhes_do_jogo(jogo_id: int):
 @app.get("/colecoes", response_model=List[Colecao])
 def listar_colecoes():
     """
-    Carrega e retorna a lista de coleções do seu próprio banco de dados.
+    Carrega e retorna a lista de coleções do banco de dados
     """
     return carregar_colecoes()
 
 @app.post("/colecoes", response_model=Colecao, status_code=201)
 def criar_colecao(colecao: Colecao):
     """
-    Recebe os dados de uma nova coleção e a salva no banco de dados.
+    Cria uma nova coleção e garante que o ID seja único e salva no banco
     """
-    colecoes_atuais = carregar_colecoes()
-    # Checa se uma coleção com esse ID já existe
-    if any(c.id == colecao.id for c in colecoes_atuais):
-        raise HTTPException(status_code=400, detail="Uma coleção com este ID já existe.")
+    colecoes = carregar_colecoes()
 
-    colecoes_atuais.append(colecao)
-    salvar_colecoes(colecoes_atuais)
+    # Verificação de ID duplicado
+    if any(c.id == colecao.id for c in colecoes):
+        raise HTTPException(
+            status_code=400,
+            detail="Uma coleção com este ID já existe."
+        )
+
+    colecoes.append(colecao)
+    salvar_colecoes(colecoes)
+
     return colecao
+
 
 @app.get("/colecoes/{colecao_id}/jogos", response_model=List[Jogo])
 def listar_jogos_da_colecao(colecao_id: str):
     """
-    Retorna todos os jogos que pertencem a uma coleção específica.
+    Retorna todos os jogos que pertencem a uma coleção específica
     """
     todos_jogos = carregar_jogos()
     jogos_na_colecao = [
@@ -178,7 +241,9 @@ def listar_jogos_da_colecao(colecao_id: str):
 
 @app.get("/tags", response_model=List[str])
 def listar_tags_unicas():
-    """Retorna uma lista de todas as tags únicas de todos os jogos."""
+    """
+    Retorna uma lista de todas as tags únicas de todos os jogos
+    """
     jogos = carregar_jogos()
     todas_as_tags = set()
     for jogo in jogos:
@@ -188,17 +253,25 @@ def listar_tags_unicas():
 
 @app.get("/jogos/aleatorio", response_model=List[Jogo])
 def listar_jogos_aleatorios(tags: Optional[str] = None):
-    """Lista até 5 jogos aleatórios, opcionalmente filtrados por tags."""
+    """
+    Retorna até 5 jogos aleatórios, aplicando filtro por tags se fornecido
+    """
     jogos = carregar_jogos()
+
+    # Filtragem por tags
     if tags:
-        tags_requisitadas = set(tags.lower().split(','))
+        tags_requisitadas = set(tags.lower().split(","))
         jogos = [
-            jogo for jogo in jogos if tags_requisitadas.issubset(set(t.lower() for t in jogo.tags))
+            jogo for jogo in jogos
+            if tags_requisitadas.issubset({t.lower() for t in jogo.tags})
         ]
 
-    # Define o número de jogos aleatórios, no máximo 5 ou o total de jogos disponíveis
-    num_aleatorios = min(5, len(jogos))
-    return random.sample(jogos, num_aleatorios)
+    # Seleção aleatória
+    if not jogos:
+        return []
+
+    quantidade = min(5, len(jogos))
+    return random.sample(jogos, quantidade)
 
 @app.post("/jogos", response_model=Jogo, status_code=201)
 def criar_novo_jogo(jogo_dados: Jogo):
