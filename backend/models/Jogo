@@ -1,53 +1,46 @@
-from typing import List, Optional
-from uuid import uuid4
-from datetime import datetime
 from pydantic import BaseModel, Field
-from enum import Enum
+from typing import List, Optional
 
-class StatusJogo(str, Enum):
-    NAO_JOGADO = "Não Jogado"
-    JOGANDO = "Jogando"
-    AGUARDANDO = "Aguardando"
-    DROPADO = "Dropado"
-    CONCLUIDO = "Concluído"
+from .avaliacao import AvaliacaoDetalhada
+from .link import Link
 
-class Link(BaseModel):
-    tipo: str
-    url: str
-
-class AvaliacaoDetalhada(BaseModel):
-    nota: Optional[float] = None
-    categorias: dict = Field(default_factory=dict)
 
 class Jogo(BaseModel):
-    id: str = Field(default_factory=lambda: str(uuid4()))
+    id: int
+
+    # Informações gerais
     nome: str
+    descricao: Optional[str] = None
+    genero: Optional[str] = None
+    tags: List[str] = Field(default_factory=list)
+
+    # Caminhos e arquivos
     caminho_executavel: str
     caminho_pasta: str
-
-    tamanho_bytes: Optional[int] = None
-
     imagem_capa: Optional[str] = None
     imagem_fundo: Optional[str] = None
     imagens_extras: List[str] = Field(default_factory=list)
 
-    descricao: Optional[str] = None
+    # Metadados técnicos
+    tamanho_gb: Optional[float] = None
     desenvolvedor: Optional[str] = None
     studio: Optional[str] = None
     engine: Optional[str] = None
     versao: Optional[str] = None
 
+    # Links
     links: List[Link] = Field(default_factory=list)
 
-    generos: List[str] = Field(default_factory=list)
-    tags: List[str] = Field(default_factory=list)
-
+    # Coleções a que o jogo pertence (apenas IDs de coleções)
     colecoes: List[str] = Field(default_factory=list)
 
+    # Progresso e estado do jogador
     tempo_jogado_segundos: int = 0
-    ultima_vez_jogado: Optional[datetime] = None
+    ultima_vez_jogado: Optional[str] = None
+    status: str = "Não Jogado"
+    zerado: bool = False
+    jogar_mais_tarde: bool = False
 
-    status: StatusJogo = StatusJogo.NAO_JOGADO
-
+    # Avaliação
     review_texto: Optional[str] = None
     avaliacao_detalhada: Optional[AvaliacaoDetalhada] = None
