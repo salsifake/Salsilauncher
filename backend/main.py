@@ -191,6 +191,40 @@ async def upload_fundo_jogo(jogo_id: int, file: UploadFile = File(...)):
         "caminho_imagem": jogo.imagem_fundo
     }
 
+@app.post("/jogos/{jogo_id}/extras", status_code=200)
+async def upload_imagens_extras(
+    jogo_id: int,
+    files: List[UploadFile] = File(...)
+):
+    jogos = carregar_jogos()
+    jogo = next((j for j in jogos if j.id == jogo_id), None)
+
+    if not jogo:
+        raise HTTPException(status_code=404, detail="Jogo não encontrado")
+
+    novos_caminhos = []
+
+    try:
+        start_index = len(jogo.imagens_extras)
+
+        for i, file in enumerate(files):
+            output_path = get_extra_image_path(jogo_id, start_index + i)
+            saved = save_webp_image(file.file, output_path, size=(1280, 720))
+            saved = saved.replace("\\", "/")
+            novos_caminhos.append(saved)
+            jogo.imagens_extras.append(saved)
+
+        salvar_jogos(jogos)
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao salvar imagens extras: {e}")
+
+    return {
+        "status": "Imagens extras adicionadas!",
+        "arquivos_salvos": novos_caminhos
+    }
+
+
 @app.get("/jogos/{jogo_id}", response_model=Jogo)
 def obter_detalhes_do_jogo(jogo_id: int):
     jogos = carregar_jogos()
