@@ -6,30 +6,68 @@ O projeto ainda está em desenvolvimento inicial e esta versão serve como base 
 ## Estrutura do Projeto
 
 ```
-salsilauncher-teste/
-│
-├── backend/
-│   ├── main.py
-│   ├── requirements.txt
-│   ├── routers/
-│   │   └── games.py
-│   └── models/
-│       └── game.py
-│
-├── frontend/
-│   ├── src/
-│   │   ├── App.jsx
-│   │   ├── main.jsx
-│   │   ├── pages/
-│   │   │   ├── Home.jsx
-│   │   │   └── Library.jsx
-│   │   ├── components/
-│   │   │   └── GameCard.jsx
-│   │   └── services/
-│   │       └── api.js
-│   └── package.json
-│
-└── README.md
+└── salsifake-salsilauncher/
+    ├── README.md
+    ├── DEVELOPMENT.md
+    ├── ROADMAP.md
+    ├── run_backend.bat
+    ├── .env.example
+    ├── backend/
+    │   ├── __init__.py
+    │   ├── colecoes_db.json
+    │   ├── jogos_db.json
+    │   ├── main.py
+    │   ├── requirements.txt
+    │   ├── data/
+    │   │   ├── __init__.py
+    │   │   ├── paths.py
+    │   │   └── storage.py
+    │   ├── models/
+    │   │   ├── AvaliacaoDetalhada.py
+    │   │   ├── Colecao.py
+    │   │   ├── Jogo
+    │   │   └── Links
+    │   ├── tests/
+    │   │   └── test_placeholder.py
+    │   └── utils/
+    │       └── image_processing.py
+    ├── frontend/
+    │   ├── README.md
+    │   ├── package.json
+    │   ├── public/
+    │   │   ├── index.html
+    │   │   ├── manifest.json
+    │   │   └── robots.txt
+    │   └── src/
+    │       ├── App.css
+    │       ├── App.js
+    │       ├── App.test.js
+    │       ├── index.css
+    │       ├── index.js
+    │       ├── reportWebVitals.js
+    │       ├── setupTests.js
+    │       ├── components/
+    │       │   ├── AccordionItem.css
+    │       │   ├── AccordionItem.js
+    │       │   ├── CollectionCard.css
+    │       │   ├── CollectionCard.js
+    │       │   ├── GameCard.css
+    │       │   ├── GameCard.js
+    │       │   ├── Sidebar.css
+    │       │   ├── Sidebar.js
+    │       │   ├── StarRating.css
+    │       │   └── StarRating.js
+    │       └── pages/
+    │           ├── AdicionarJogoPage.js
+    │           ├── Biblioteca.js
+    │           ├── BuscaPage.css
+    │           ├── BuscaPage.js
+    │           ├── ColecoesPage.css
+    │           ├── ColecoesPage.js
+    │           ├── DetalhesJogo.css
+    │           └── DetalhesJogo.js
+    └── .github/
+        └── PULL_REQUEST_TEMPLATE.md
 ```
 
 ## Fluxograma do Projeto
