@@ -1,6 +1,7 @@
 import os
 import json
 from typing import List, Any, Optional
+from filelock import FileLock
 
 from models.jogo import Jogo
 from models.colecao import Colecao
@@ -45,8 +46,10 @@ def ler_json_seguro(caminho: str, default: Optional[Any] = None):
 DB_FILE = "jogos_db.json"
 
 def salvar_jogos(jogos: List[Jogo]):
-    dados = [j.dict() for j in jogos]
-    salvar_arquivo_atomico(DB_FILE, dados)
+    lock = FileLock(DB_FILE + ".lock")
+    with lock:
+        dados = [j.dict() for j in jogos]
+        salvar_arquivo_atomico(DB_FILE, dados)
 
 def carregar_jogos() -> List[Jogo]:
     dados = ler_json_seguro(DB_FILE, default=[])

@@ -24,7 +24,7 @@ app = FastAPI(title="Salsilauncher API")
 DB_FILE = "jogos_db.json"
 
 # CORS Middleware
-origins = ["http://localhost:8000"]
+origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000").split(",")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,

@@ -7,6 +7,11 @@
 - [x] Estruturar rotas iniciais e layout básico
 - [x] Implementar endpoint GET /games com dados estáticos
 - [x] Configurar ambiente de desenvolvimento
+- [ ] Criar função centralizada para carregar variáveis de ambiente (env loader)
+- [ ] Padronizar respostas de erro com um handler global (middleware)
+- [ ] Implementar logs mínimos no backend (info, warning, error)
+- [ ] Criar estrutura de testes iniciais (mesmo que placeholders)
+
 
 ## Observações:
 ### Jogo.id é int 
@@ -108,6 +113,10 @@ if not os.path.exists(caminho) or not os.path.isdir(caminho):
 - [ ] Implementar API para upload de imagens de jogos
 - [ ] Criar modal para adicionar jogos manualmente
 - [ ] Implementar carregamento e tratamento de erros no frontend
+- [ ] Criar validação automática no backend para campos obrigatórios
+- [ ] Implementar pré-visualização de imagens antes do upload no frontend
+- [ ] Criar endpoint PATCH para atualizações parciais dos jogos
+- [ ] Permitir edição de imagens/capa (substituir e deletar)
 
 ## Fase 3 — Biblioteca e Organização
 - [ ] Criar layout completo da biblioteca
@@ -117,15 +126,27 @@ if not os.path.exists(caminho) or not os.path.isdir(caminho):
 - [ ] Criar categorias personalizadas
 - [ ] Implementar ordenação por mais jogados, recentes etc.
 - [ ] Paginação e filtros no endpoint `GET /jogos`
+- [ ] Adicionar “coleções inteligentes” (Mais jogados, Recentes)
+- [ ] Criar cache básico para busca de jogos no backend
+- [ ] Permitir ordenação asc/desc nos filtros
+- [ ] Exibir contadores de jogos por gênero/categoria
 
 ## Fase 4 — Sistema de Execução de Jogos
 ### A
 - [ ] Implementar execução direta de jogos no Windows
+- [ ] Tratar erros comuns de execução (arquivo não encontrado, permissão negada)
+- [ ] Permitir que o usuário configure arguments/opções de execução
+- [ ] Registrar última execução (timestamp) do jogo
 
 ### B
 - [ ] Implementar contagem de horas jogadas
 - [ ] Criar sistema que roda em segundo plano para monitorar jogo aberto
 - [ ] Registrar estatísticas no banco de dados
+- [ ] Criar tabela/módulo dedicado a sessões de jogo
+- [ ] Implementar detecção de fechamento inesperado do processo
+- [ ] Exibir histórico de sessões (data, duração)
+- [ ] Criar endpoint para corrigir sessões manualmente
+
 
 ## Fase 5 — Sistema de Download de Jogos (Principal)
 - [ ] Criar integração com fonte externa de downloads
@@ -133,6 +154,10 @@ if not os.path.exists(caminho) or not os.path.isdir(caminho):
 - [ ] Implementar downloader com barra de progresso
 - [ ] Gerenciar múltiplos downloads simultâneos
 - [ ] Verificar integridade dos arquivos baixados
+- [ ] Criar fila de downloads com prioridade
+- [ ] Implementar retries automáticos em falhas
+- [ ] Criar verificação de checksum/integraidade por hash
+- [ ] Registrar origem/metadata de cada download
 
 ## Fase 6 — Recursos Avançados
 - [ ] Criar sistema de savestates
