@@ -23,11 +23,23 @@ from backend.data.paths import get_capa_path, get_fundo_path, get_extra_image_pa
 app = FastAPI(title="Salsilauncher API")
 DB_FILE = "jogos_db.json"
 
-# CORS Middleware
-origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000").split(",")
+# --- CORS Middleware ---
+
+# ler origens permitidas do .env
+origins_env = os.getenv("ALLOWED_ORIGINS", "")
+if origins_env.strip():
+    allowed_origins = [o.strip() for o in origins_env.split(",")]
+else:
+    allowed_origins = [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

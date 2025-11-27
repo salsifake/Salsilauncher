@@ -1,7 +1,7 @@
 import React, { useRef } from 'react';
-import axios from 'axios';
 import './GameCard.css';
 import { Link } from 'react-router-dom';
+import api from "../../services/api"
 
 function GameCard({ jogo }) {
   const fileInputRef = useRef(null);
@@ -13,7 +13,7 @@ function GameCard({ jogo }) {
     const formData = new FormData();
     formData.append('file', file);
 
-    axios.post(`http://127.0.0.1:8000/jogos/${jogo.id}/capa`, formData)
+    api.post(`/jogos/${jogo.id}/capa`, formData)
     .then(() => window.location.reload())
     .catch(error => console.error('Erro no upload:', error));
   };

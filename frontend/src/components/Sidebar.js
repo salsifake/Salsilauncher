@@ -1,15 +1,15 @@
 // frontend/src/components/Sidebar.js
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import axios from 'axios';
 import './Sidebar.css';
 import AccordionItem from './AccordionItem'
+import api from "../../services/api"
 
 function Sidebar() {
   const [colecoes, setColecoes] = useState([]);
 
   useEffect(() => {
-    axios.get('http://127.0.0.1:8000/colecoes')
+    api.get('/colecoes')
       .then(response => {
         setColecoes(response.data);
       })

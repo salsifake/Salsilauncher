@@ -1,8 +1,8 @@
 // frontend/src/pages/BuscaPage.js
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
 import { Link } from 'react-router-dom';
 import './BuscaPage.css';
+import api from '../services/api';
 
 function BuscaPage() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -11,7 +11,7 @@ function BuscaPage() {
   const [results, setResults] = useState([]);
 
   useEffect(() => {
-    axios.get('http://127.0.0.1:8000/tags').then(res => setTags(res.data));
+    api.get('/tags').then(res => setTags(res.data));
   }, []);
 
   const handleSearch = () => {
@@ -20,7 +20,7 @@ function BuscaPage() {
     if (activeFilters.size > 0) {
       params.append('tags', Array.from(activeFilters).join(','));
     }
-    axios.get(`http://127.0.0.1:8000/jogos?${params.toString()}`).then(res => setResults(res.data));
+    api.get(`/jogos?${params.toString()}`).then(res => setResults(res.data));
   };
 
   const handleRandom = () => {
@@ -28,7 +28,7 @@ function BuscaPage() {
     if (activeFilters.size > 0) {
       params.append('tags', Array.from(activeFilters).join(','));
     }
-    axios.get(`http://127.0.0.1:8000/jogos/aleatorio?${params.toString()}`).then(res => setResults(res.data));
+    api.get(`/jogos/aleatorio?${params.toString()}`).then(res => setResults(res.data));
   };
 
   const toggleFilter = (tag) => {
@@ -55,7 +55,7 @@ function BuscaPage() {
         <div className="search-results">
           {results.map(jogo => (
             <Link to={`/jogo/${jogo.id}`} key={jogo.id} className="search-result-item">
-              <img src={jogo.imagem_capa ? `http://127.0.0.1:8000/${jogo.imagem_capa}` : 'placeholder.png'} alt={jogo.nome} />
+              <img src={jogo.imagem_capa ? `/${jogo.imagem_capa}` : 'placeholder.png'} alt={jogo.nome} />
               <div className="result-info">
                 <h3>{jogo.nome}</h3>
                 <p>{jogo.studio || 'N/A'}</p>

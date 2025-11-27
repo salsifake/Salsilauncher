@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../services/api';
 import GameCard from '../components/GameCard';
 
 function Biblioteca() {
   const [jogos, setJogos] = useState([]);
 
   useEffect(() => {
-    axios.get('http://127.0.0.1:8000/jogos')
+    api.get('/jogos')
       .then(response => setJogos(response.data))
       .catch(error => console.error('Erro ao buscar jogos:', error));
   }, []);

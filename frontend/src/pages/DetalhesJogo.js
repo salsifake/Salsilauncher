@@ -1,34 +1,32 @@
 // frontend/src/pages/DetalhesJogo.js
 import React, { useState, useEffect, useCallback } from 'react';
-import axios from 'axios';
 import './DetalhesJogo.css';
 import { Link, useParams } from 'react-router-dom';
 import StarRating from '../components/StarRating'; // Importamos nosso novo componente
+import api from '../services/api';
+
 export default DetalhesJogo;
 
 function DetalhesJogo() {
-  // O que faz:
-  //   useParams é um "hook" do React Router que lê a URL atual e nos dá
-  //   acesso aos parâmetros dinâmicos. No nosso caso, o ':id'.
+
   const { id } = useParams();
   const [jogo, setJogo] = useState(null); // Inicia como nulo, pois ainda não temos os dados
 
   useEffect(() => {
     // Busca os dados do jogo específico usando o ID da URL
-    axios.get(`http://127.0.0.1:8000/jogos/${id}`)
+    api.get(`/jogos/${id}`)
       .then(response => {
         setJogo(response.data);
       })
       .catch(error => {
         console.error('Erro ao buscar detalhes do jogo:', error);
-        // Idealmente, aqui mostraríamos uma mensagem de erro na tela
       });// frontend/src/pages/DetalhesJogo.js
       
       function DetalhesJogo() {
         const { id } = useParams();
         const [jogo, setJogo] = useState(null);
       
-        // Usamos useCallback para evitar recriar a função a cada renderização
+        // useCallback para evitar recriar a função a cada renderização
         const calcularNotaGeral = useCallback(() => {
           if (!jogo || !jogo.avaliacao_detalhada) return 0;
           const { gameplay, graficos, historia, audio, inovacao, bonus } = jogo.avaliacao_detalhada;
@@ -38,7 +36,7 @@ function DetalhesJogo() {
         }, [jogo]);
       
         useEffect(() => {
-          axios.get(`http://127.0.0.1:8000/jogos/${id}`)
+          api.get(`/jogos/${id}`)
             .then(response => {
               // Garante que a avaliação detalhada exista no objeto do jogo
               if (!response.data.avaliacao_detalhada) {
@@ -64,7 +62,7 @@ function DetalhesJogo() {
         };
       
         const handleSaveChanges = () => {
-          axios.put(`http://127.0.0.1:8000/jogos/${id}`, jogo)
+          api.put(`/jogos/${id}`, jogo)
             .then(response => {
               alert('Review e alterações salvas com sucesso!');
               setJogo(response.data);
@@ -79,7 +77,7 @@ function DetalhesJogo() {
         return (
           <div className="detalhes-container">
             <div className="detalhes-header">
-              {/* ... (cabeçalho com capa e informações que já fizemos) ... */}
+              {/* ... (cabeçalho com capa e informações que já fiz) ... */}
               <div className="nota-geral">Nota: {notaGeral.toFixed(1)} / 6.0</div>
               <Link to={`/jogo/${id}/editar`}><button>Editar Jogo</button></Link>
             </div>
@@ -124,7 +122,7 @@ function DetalhesJogo() {
       {/* A imagem de fundo que planejamos no futuro viria aqui */}
       <div className="detalhes-header">
         {jogo.imagem_capa && (
-          <img src={`http://127.0.0.1:8000/${jogo.imagem_capa}`} alt={`Capa de ${jogo.nome}`} className="detalhes-capa" />
+          <img src={`/${jogo.imagem_capa}`} alt={`Capa de ${jogo.nome}`} className="detalhes-capa" />
         )}
         <div className="detalhes-header-info">
             <h1>{jogo.nome}</h1>

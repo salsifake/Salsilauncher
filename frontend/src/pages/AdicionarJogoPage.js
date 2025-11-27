@@ -1,7 +1,7 @@
 // frontend/src/pages/AdicionarJogoPage.js
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import api from "../services/api"
 
 // Este é o estado inicial para um jogo novo e vazio
 const JOGO_VAZIO = {
@@ -21,10 +21,10 @@ function AdicionarJogoPage() {
     // Se estamos em modo de edição, busca os dados do jogo e das coleções
     useEffect(() => {
         // Busca todas as coleções existentes para popular o seletor
-        axios.get('http://127.0.0.1:8000/colecoes').then(res => setAllCollections(res.data));
+        api.get('/colecoes').then(res => setAllCollections(res.data));
 
         if (isEditMode) {
-            axios.get(`http://127.0.0.1:8000/jogos/${id}`)
+            api.get(`/jogos/${id}`)
                 .then(response => {
                     setJogoData(response.data);
                 });
@@ -46,8 +46,8 @@ function AdicionarJogoPage() {
     const handleSubmit = (e) => {
         e.preventDefault();
         const request = isEditMode
-            ? axios.put(`http://127.0.0.1:8000/jogos/${id}`, jogoData)
-            : axios.post('http://127.0.0.1:8000/jogos', { ...jogoData, id: 0 }); // Envia ID 0 para criação
+            ? api.put(`/jogos/${id}`, jogoData)
+            : api.post('/jogos', { ...jogoData, id: 0 }); // Envia ID 0 para criação
 
         request.then(response => {
             const jogoSalvo = response.data;
@@ -57,7 +57,7 @@ function AdicionarJogoPage() {
 
     const handleDelete = () => {
         if (window.confirm("Você tem certeza que quer remover este jogo? Esta ação não pode ser desfeita.")) {
-            axios.delete(`http://127.0.0.1:8000/jogos/${id}`)
+            api.delete(`/jogos/${id}`)
                 .then(() => navigate('/')) // Navega para a home após remover
                 .catch(error => console.error("Erro ao remover o jogo:", error));
         }

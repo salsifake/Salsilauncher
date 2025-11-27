@@ -1,8 +1,8 @@
 // frontend/src/components/AccordionItem.js
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import axios from 'axios';
 import './AccordionItem.css';
+import api from "../../services/api"
 
 function AccordionItem({ colecao }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -17,7 +17,7 @@ function AccordionItem({ colecao }) {
     }
 
     setIsLoading(true);
-    axios.get(`http://127.0.0.1:8000/colecoes/${colecao.id}/jogos`)
+    api.get(`/colecoes/${colecao.id}/jogos`)
       .then(response => {
         setJogos(response.data);
         setIsLoading(false);
