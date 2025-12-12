@@ -1,77 +1,66 @@
-import os
 import json
-from typing import List, Any, Optional
+import os
+import tempfile
+from pathlib import Path
 from filelock import FileLock
+from typing import Any, List
 
-from models.jogo import Jogo
-from models.colecao import Colecao
-
-
-# -----------------------------
-# Funções utilitárias
-# -----------------------------
-
-def salvar_arquivo_atomico(caminho: str, dados: Any):
-    """
-    Salva um arquivo JSON de forma atômica para evitar corrupção
-    caso o programa seja interrompido durante escrita.
-    """
-    temp = caminho + ".tmp"
-
-    with open(temp, "w", encoding="utf-8") as f:
-        json.dump(dados, f, indent=4, ensure_ascii=False)
-
-    os.replace(temp, caminho)
+BASE_DIR = Path(__file__).resolve().parent.parent
+JOGOS_DB = BASE_DIR / "jogos_db.json"
+COLECOES_DB = BASE_DIR / "colecoes_db.json"
 
 
-def ler_json_seguro(caminho: str, default: Optional[Any] = None):
-    """
-    Lê um JSON com tratamento de erros.
-    Se o arquivo estiver corrompido ou não existir, retorna default.
-    """
-    if not os.path.exists(caminho):
-        return default
+LOCK_JOGOS = FileLock(str(JOGOS_DB) + ".lock")
+LOCK_COLECOES = FileLock(str(COLECOES_DB) + ".lock")
+
+
+# --- Funções auxiliares ---
+
+def _atomic_write(path: Path, data: Any):
+    """Escreve JSON de forma atômica usando arquivo temporário + os.replace()."""
+    directory = path.parent
+    with tempfile.NamedTemporaryFile("w", delete=False, dir=directory, encoding="utf-8") as tmp:
+        json.dump(data, tmp, ensure_ascii=False, indent=2)
+        temp_name = tmp.name
+
+    # replace é atômico em praticamente todos os sistemas de arquivos modernos
+    os.replace(temp_name, path)
+
+
+def _safe_load(path: Path):
+    """Carrega JSON de forma segura com tratamento explícito."""
+    if not path.exists():
+        return []
 
     try:
-        with open(caminho, "r", encoding="utf-8") as f:
+        with path.open("r", encoding="utf-8") as f:
             return json.load(f)
-    except (json.JSONDecodeError, OSError):
-        return default
+    except json.JSONDecodeError:
+        # mover arquivo corrompido
+        backup_path = path.with_suffix(".broken.json")
+        os.replace(path, backup_path)
+        raise RuntimeError(
+            f"Arquivo corrompido detectado. Backup movido para {backup_path}"
+        )
 
 
-# -----------------------------
-# Jogos
-# -----------------------------
+# --- API pública usada pelo restante do backend ---
 
-DB_FILE = "jogos_db.json"
-
-def salvar_jogos(jogos: List[Jogo]):
-    lock = FileLock(DB_FILE + ".lock")
-    with lock:
-        dados = [j.dict() for j in jogos]
-        salvar_arquivo_atomico(DB_FILE, dados)
-
-def carregar_jogos() -> List[Jogo]:
-    dados = ler_json_seguro(DB_FILE, default=[])
-    return [Jogo(**j) for j in dados]
+def carregar_jogos() -> List[dict]:
+    with LOCK_JOGOS:
+        return _safe_load(JOGOS_DB)
 
 
-# -----------------------------
-# Coleções
-# -----------------------------
+def salvar_jogos(jogos: List[dict]):
+    with LOCK_JOGOS:
+        _atomic_write(JOGOS_DB, jogos)
 
-COLECOES_DB_FILE = "colecoes_db.json"
 
-def salvar_colecoes(colecoes: List[Colecao]):
-    dados = [c.dict() for c in colecoes]
-    salvar_arquivo_atomico(COLECOES_DB_FILE, dados)
+def carregar_colecoes() -> List[dict]:
+    with LOCK_COLECOES:
+        return _safe_load(COLECOES_DB)
 
-def carregar_colecoes() -> List[Colecao]:
-    dados = ler_json_seguro(COLECOES_DB_FILE, default=None)
 
-    if not dados:
-        colecao_padrao = [Colecao(id="jogar-mais-tarde", nome="Jogar mais Tarde")]
-        salvar_colecoes(colecao_padrao)
-        return colecao_padrao
-
-    return [Colecao(**c) for c in dados]
+def salvar_colecoes(colecoes: List[dict]):
+    with LOCK_COLECOES:
+        _atomic_write(COLECOES_DB, colecoes)
