@@ -11,10 +11,10 @@ from PIL import Image
 import random
 from backend.data.storage import salvar_jogos, carregar_jogos, salvar_colecoes, carregar_colecoes
 from pathlib import Path
-from backend.models.jogo import Jogo
-from backend.models.colecao import Colecao
-from backend.models.avaliacao import AvaliacaoDetalhada
-from backend.models.link import Link
+from backend.models.Jogo import Jogo
+from backend.models.Colecao import Colecao
+from backend.models.AvaliacaoDetalhada import AvaliacaoDetalhada
+from backend.models.Links import Link
 from backend.utils.image_processing import save_webp_image
 from backend.data.paths import get_capa_path, get_fundo_path, get_extra_image_path
 

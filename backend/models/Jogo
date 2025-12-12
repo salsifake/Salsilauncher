@@ -1,8 +1,8 @@
 from pydantic import BaseModel, Field
 from typing import List, Optional
 
-from .avaliacao import AvaliacaoDetalhada
-from .link import Link
+from .AvaliacaoDetalhada import AvaliacaoDetalhada
+from .Links import Link
 
 
 class Jogo(BaseModel):
