@@ -56,6 +56,31 @@ app.mount("/midia_launcher", StaticFiles(directory=MIDIA_DIR), name="midia")
 
 #  --- ENDPOINTS DA API ---
 
+@app.get("/jogos/aleatorio", response_model=List[Jogo])
+def listar_jogos_aleatorios(tags: Optional[str] = None):
+    """
+    Retorna até 5 jogos aleatórios, aplicando filtro por tags se fornecido
+    """
+    jogos = carregar_jogos()
+
+    # Filtragem por tags
+    if tags:
+        tags_requisitadas = {t.strip().lower() for t in tags.split(",")}
+        jogos = [
+            jogo for jogo in jogos
+            if tags_requisitadas.issubset(
+                {t.lower() for t in jogo.get("tags", [])}
+            )
+     ]
+
+    # Seleção aleatória
+    if not jogos:
+        return []
+
+    quantidade = min(5, len(jogos))
+    return random.sample(jogos, quantidade)
+
+
 @app.get("/jogos", response_model=List[Jogo])
 def listar_jogos(q: Optional[str] = None, tags: Optional[str] = None):
     jogos = carregar_jogos()
@@ -297,39 +322,19 @@ def listar_tags_unicas():
             todas_as_tags.add(tag)
     return sorted(list(todas_as_tags))
 
-@app.get("/jogos/aleatorio", response_model=List[Jogo])
-def listar_jogos_aleatorios(tags: Optional[str] = None):
-    """
-    Retorna até 5 jogos aleatórios, aplicando filtro por tags se fornecido
-    """
-    jogos = carregar_jogos()
-
-    # Filtragem por tags
-    if tags:
-        tags_requisitadas = set(tags.lower().split(","))
-        jogos = [
-            jogo for jogo in jogos
-            if tags_requisitadas.issubset({t.lower() for t in jogo["tags"]})
-        ]
-
-    # Seleção aleatória
-    if not jogos:
-        return []
-
-    quantidade = min(5, len(jogos))
-    return random.sample(jogos, quantidade)
-
 @app.post("/jogos", response_model=Jogo, status_code=201)
 def criar_novo_jogo(jogo_dados: Jogo):
     """Cria uma nova entrada de jogo no banco de dados."""
     jogos = carregar_jogos()
-    # Define um novo ID para o jogo
-    novo_id = max([j["id"] for j in jogos], default=0) + 1
-    jogo_dados.id = novo_id
 
-    jogos.append(jogo_dados)
+    novo_id = max((j["id"] for j in jogos), default=0) + 1
+
+    jogo_dict = jogo_dados.model_dump()
+    jogo_dict["id"] = novo_id
+
+    jogos.append(jogo_dict)
     salvar_jogos(jogos)
-    return jogo_dados
+    return jogo_dict
 
 @app.put("/jogos/{jogo_id}", response_model=Jogo)
 def atualizar_jogo(jogo_id: int, jogo_atualizado: Jogo):
@@ -342,7 +347,7 @@ def atualizar_jogo(jogo_id: int, jogo_atualizado: Jogo):
 
     # Garante que o ID não seja alterado
     jogo_atualizado.id = jogo_id
-    jogos[index_do_jogo] = jogo_atualizado
+    jogos[index_do_jogo] = jogo_atualizado.dict()
     salvar_jogos(jogos)
     return jogo_atualizado
 
