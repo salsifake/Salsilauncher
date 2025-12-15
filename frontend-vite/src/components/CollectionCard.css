@@ -1,0 +1,7 @@
+.collection-card { cursor: pointer; background-color: #2d2d2d; border-radius: 8px; overflow: hidden; position: relative; aspect-ratio: 4 / 5; transition: transform 0.2s ease-in-out; }
+.collection-card:hover { transform: scale(1.05); }
+.collection-card-placeholder { background-color: #424242; width: 100%; height: 100%; }
+.collection-card-name { position: absolute; bottom: 0; left: 0; right: 0; padding: 1rem; background: linear-gradient(to top, rgba(0,0,0,0.8), transparent); color: white; font-size: 1.2rem; text-align: center; }
+.create-card { display: flex; flex-direction: column; align-items: center; justify-content: center; border: 2px dashed #555; }
+.create-card-plus { font-size: 4rem; font-weight: 200; color: #777; }
+.create-card-text { font-size: 1.2rem; color: #999; margin-top: 1rem; }

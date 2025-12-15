@@ -1,0 +1,3 @@
+.colecoes-page { padding: 2rem; }
+.colecoes-page h1 { font-size: 2.5rem; margin-bottom: 2rem; }
+.colecoes-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 1.5rem; }
