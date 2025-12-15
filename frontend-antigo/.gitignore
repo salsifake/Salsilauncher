@@ -21,3 +21,8 @@
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# Arquivos temporários de escrita atômica
+/backend/tmp/*
+/!backend/tmp/.gitkeep
+
