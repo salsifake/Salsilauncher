@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import './DetalhesJogo.css';
 import { Link, useParams } from 'react-router-dom';
 import StarRating from '../components/StarRating'; // Importamos nosso novo componente
-import api from '../services/api';
+import api from '@/services/api';
 
 export default DetalhesJogo;
 

@@ -8,8 +8,6 @@ Este documento explica como configurar o ambiente, executar o projeto e contribu
 - **Python 3.10+**
 - **Node.js 18+**
 - **npm**
-- **VS Code** (recomendado)
-- **GitHub Desktop** ou Git CLI
 
 ---
 

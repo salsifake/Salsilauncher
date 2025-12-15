@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import CollectionCard from '../components/CollectionCard';
 import './ColecoesPage.css'; // Vamos criar este arquivo
-import api from '../services/api';
+import api from '@/services/api';
 
 function ColecoesPage() {
   const [colecoes, setColecoes] = useState([]);

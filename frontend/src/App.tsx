@@ -1,35 +1,33 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import './App.css';
+import Biblioteca from './pages/Biblioteca';
+import DetalhesJogo from './pages/DetalhesJogo';
+import Sidebar from './components/Sidebar'; // Importamos a Sidebar
+import BuscaPage from './pages/BuscaPage'
+import AdicionarJogoPage from './pages/AdicionarJogoPage';
+
+// Criamos uma página placeholder para o gerenciador de coleções
+function ColecoesPage() { return <h1 style={{padding: '2rem'}}>Gerenciar Coleções</h1>; }
 
 function App() {
-  const [count, setCount] = useState(0)
-
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
+    <Router>
+      <div className="app-layout">
+        <Sidebar /> {/* A Sidebar agora é fixa */}
+        <main className="main-content">
+          <Routes>
+            <Route path="/" element={<Biblioteca />} />
+            <Route path="/colecoes" element={<ColecoesPage />} />
+            <Route path="/jogo/:id" element={<DetalhesJogo />} />
+            <Route path="/buscar" element={<BuscaPage />} />
+            <Route path="/adicionar-jogo" element={<AdicionarJogoPage />} />
+            <Route path="/jogo/:id/editar" element={<AdicionarJogoPage />} />
+          </Routes>
+        </main>
       </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+    </Router>
+  );
 }
 
-export default App
+export default App;

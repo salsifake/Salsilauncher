@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import api from '../services/api';
-import GameCard from '../components/GameCard';
+import GameCard from '@/components/GameCard';
 
 function Biblioteca() {
   const [jogos, setJogos] = useState([]);

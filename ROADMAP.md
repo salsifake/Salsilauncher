@@ -118,6 +118,7 @@ if not os.path.exists(caminho) or not os.path.isdir(caminho):
 - [ ] Criar endpoint PATCH para atualizações parciais dos jogos
 - [ ] Permitir edição de imagens/capa (substituir e deletar)
 
+
 ## Fase 3 — Biblioteca e Organização
 - [ ] Criar layout completo da biblioteca
 - [ ] Criar página individual por jogo
@@ -164,6 +165,10 @@ if not os.path.exists(caminho) or not os.path.isdir(caminho):
 - [ ] Criar integração com fórum (comentários, posts, notas)
 - [ ] Criar sistema de avaliações dos jogos
 - [ ] Criar seção de jogos recomendados
+- [ ] Sistema de tags livres e automáticas (extraídas do fórum/parsing)
+- [ ] Criar ranking de avaliações dos usuários
+- [ ] Criar painel de atividade recente (novos downloads, atualizações)
+- [ ] Permitir múltiplos perfis de usuário (opcional)
 
 ## Fase 7 — UI/UX Completa
 - [ ] Criar tema visual definitivo
@@ -171,6 +176,10 @@ if not os.path.exists(caminho) or not os.path.isdir(caminho):
 - [ ] Criar animações e transições
 - [ ] Criar mecanismo de responsive design
 - [ ] Criar ícone, splash screen e identidade visual
+- [ ] Criar sistema de componentes reutilizáveis (design system)
+- [ ] Criar versão mobile minimalista da UI
+- [ ] Adicionar microinterações (hover, feedback visual)
+- [ ] Otimizar carregamento de imagens (lazy loading)
 
 ## Fase 8 — Transformação do Launcher em Aplicativo Desktop
 - [ ] Integrar o Salsilauncher com Electron
@@ -178,6 +187,10 @@ if not os.path.exists(caminho) or not os.path.isdir(caminho):
 - [ ] Empacotar versão desktop para Windows
 - [ ] Criar sistema de auto-update
 - [ ] Criar modos portáteis e instaláveis
+- [ ] Criar processo de inicialização unificada (Electron + backend)
+- [ ] Implementar comunicação IPC segura com preload
+- [ ] Definir diretórios de armazenamento conforme OS (AppData, portable)
+- [ ] Criar logs separados para desktop e backend
 
 ## Fase 9 — Infraestrutura e Qualidade
 - [ ] Criar testes automáticos (backend e frontend)
@@ -185,6 +198,10 @@ if not os.path.exists(caminho) or not os.path.isdir(caminho):
 - [ ] Criar pipeline de build
 - [ ] Criar sistema de logs
 - [ ] Otimizar performance geral
+- [ ] Implementar lint automático no frontend e backend
+- [ ] Criar testes de integração (Fluxo de adicionar jogo → editar → excluir)
+- [ ] Criar ferramenta CLI interna para manutenção (reset DB, limpar cache)
+- [ ] Adicionar benchmark básico (tempo de resposta das rotas)
 
 ## Fase 10 — Futuro e Expansões
 - [ ] Suporte a outras plataformas além de Windows

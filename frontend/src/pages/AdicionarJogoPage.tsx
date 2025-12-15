@@ -1,7 +1,7 @@
 // frontend/src/pages/AdicionarJogoPage.js
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import api from "../services/api"
+import api from "@/services/api"
 
 // Este é o estado inicial para um jogo novo e vazio
 const JOGO_VAZIO = {
