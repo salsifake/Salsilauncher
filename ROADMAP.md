@@ -10,7 +10,7 @@
 - [ ] Criar função centralizada para carregar variáveis de ambiente (env loader)
 - [ ] Padronizar respostas de erro com um handler global (middleware)
 - [ ] Implementar logs mínimos no backend (info, warning, error)
-- [ ] Criar estrutura de testes iniciais (mesmo que placeholders)
+- [X] Criar estrutura de testes iniciais (mesmo que placeholders)
 
 
 ## Observações:
@@ -89,7 +89,7 @@ if not os.path.exists(caminho) or not os.path.isdir(caminho):
 ## Plano de melhorias pré-fase 2
 
 ### Prioridade alta
-- [ ] Gravação atômica + file lock nas funções salvar_jogos/salvar_colecoes.
+- [X] Gravação atômica + file lock nas funções salvar_jogos/salvar_colecoes.
 - [ ] Validação robusta de uploads (content_type, tamanho, Image.verify, salvar por hash).
 - [ ] Criar schemas separados JogoCreate, JogoUpdate, JogoRead para evitar clients definirem campos proibidos.
 - [ ] ID generation seguro: migrar para UUID ou controlar geração dentro de DB. Se continuar com ints, usar DB autoincrement.
@@ -100,7 +100,7 @@ if not os.path.exists(caminho) or not os.path.isdir(caminho):
 - [ ] Validar e sanitizar entrada do /scan (caminho com existência/permissões).
 - [ ] Remover/limpar assets no DELETE (apagar capa webp e outros arquivos órfãos).
 - [ ] Adicionar paginação em GET /jogos (query params limit e offset ou page).
-- [ ] CORS configurável via variável de ambiente.
+- [X] CORS configurável via variável de ambiente.
 
 ### Prioridade Baixa
 - [ ] Migrar persistência para SQLite + SQLModel (boa relação custo/benefício).
@@ -108,11 +108,12 @@ if not os.path.exists(caminho) or not os.path.isdir(caminho):
 - [ ] Adicionar CI (GitHub Actions) rodando lint + testes.
 
 ## Fase 2 — Fundação do Sistema de Jogos (Em andamento)
-- [ ] Criar modelos persistentes de jogos
-- [ ] Criar CRUD completo (adicionar, editar, remover jogos)
+- [X] Criar modelos persistentes de jogos
+- [X] Criar CRUD completo (adicionar, editar, remover jogos)
+- [ ] Implementar edição completa de jogos
 - [ ] Implementar API para upload de imagens de jogos
-- [ ] Criar modal para adicionar jogos manualmente
-- [ ] Implementar carregamento e tratamento de erros no frontend
+- [X] Criar modal para adicionar jogos manualmente
+- [X] Implementar carregamento e tratamento de erros no frontend
 - [ ] Criar validação automática no backend para campos obrigatórios
 - [ ] Implementar pré-visualização de imagens antes do upload no frontend
 - [ ] Criar endpoint PATCH para atualizações parciais dos jogos

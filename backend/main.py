@@ -57,7 +57,7 @@ app.mount("/midia_launcher", StaticFiles(directory=MIDIA_DIR), name="midia")
 #  --- ENDPOINTS DA API ---
 
 @app.get("/jogos/aleatorio", response_model=List[Jogo])
-def listar_jogos_aleatorios(tags: Optional[str] = None):
+def listar_jogos_aleatorios(tags: Optional[str] = Query(None, description="Tags separadas por vírgula")):
     """
     Retorna até 5 jogos aleatórios, aplicando filtro por tags se fornecido
     """
