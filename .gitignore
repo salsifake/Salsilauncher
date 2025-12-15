@@ -7,3 +7,5 @@ __pycache__/
 .env
 .DS_Store
 /backend/tmp
+backend/data/colecoes_db.json
+backend/data/jogos_db.json
