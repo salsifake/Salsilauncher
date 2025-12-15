@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import './AccordionItem.css';
-import api from "../services/api"
+import api from '@/services/api'
 
 function AccordionItem({ colecao }) {
   const [isOpen, setIsOpen] = useState(false);

@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import './Sidebar.css';
 import AccordionItem from './AccordionItem'
-import api from "../services/api"
+import api from '@/services/api'
 
 function Sidebar() {
   const [colecoes, setColecoes] = useState([]);
