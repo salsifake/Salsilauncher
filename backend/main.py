@@ -65,7 +65,7 @@ def listar_jogos(q: Optional[str] = None, tags: Optional[str] = None):
         tags_requisitadas = {t.strip().lower() for t in tags.split(",")}
         jogos = [
             jogo for jogo in jogos
-            if tags_requisitadas.issubset({t.lower() for t in jogo.tags})
+            if tags_requisitadas.issubset({t.lower() for t in jogo["tags"]})
         ]
 
     # busca por texto com prioridade
@@ -76,17 +76,17 @@ def listar_jogos(q: Optional[str] = None, tags: Optional[str] = None):
         for jogo in jogos:
             score = 0
 
-            if termo in jogo.nome.lower():
+            if termo in jogo["nome"].lower():
                 score += 5
-            if any(termo in t.lower() for t in jogo.tags):
+            if any(termo in t.lower() for t in jogo.get("tags", [])):
                 score += 3
-            if jogo.desenvolvedor and termo in jogo.desenvolvedor.lower():
+            if jogo.get("desenvolvedor") and termo in jogo["desenvolvedor"].lower():
                 score += 2
-            if jogo.studio and termo in jogo.studio.lower():
+            if jogo.get("studio") and termo in jogo["studio"].lower():
                 score += 1
-            if jogo.descricao and termo in jogo.descricao.lower():
+            if jogo.get("descricao") and termo in jogo["descricao"].lower():
                 score += 1
-            if any(termo in link.nome.lower() for link in jogo.links):
+            if any(termo in link["nome"].lower() for link in jogo.get("links", [])):
                 score += 1
 
             if score > 0:
@@ -127,7 +127,7 @@ def escanear_pasta_por_jogos(caminho: str = Body(..., embed=True)):
 
     # Criar o objeto Jogo a partir da pasta
     def criar_jogo_para_pasta(pasta, executavel, jogos):
-        novo_id = max((j.id for j in jogos), default=0) + 1
+        novo_id = max((j["id"] for j in jogos), default=0) + 1
         nome = os.path.basename(pasta)
         return Jogo(
             id=novo_id,
@@ -151,7 +151,7 @@ def escanear_pasta_por_jogos(caminho: str = Body(..., embed=True)):
 
     return {
         "status": f"{len(novos)} jogos adicionados.",
-        "adicionados": [j.id for j in novos],
+        "adicionados": [j["id"] for j in novos],
         "total_biblioteca": len(jogos)
     }
 
@@ -159,7 +159,7 @@ def escanear_pasta_por_jogos(caminho: str = Body(..., embed=True)):
 @app.post("/jogos/{jogo_id}/capa", status_code=200)
 async def upload_capa_jogo(jogo_id: int, file: UploadFile = File(...)):
     jogos = carregar_jogos()
-    jogo = next((j for j in jogos if j.id == jogo_id), None)
+    jogo = next((j for j in jogos if j["id"] == jogo_id), None)
 
     if not jogo:
         raise HTTPException(status_code=404, detail="Jogo não encontrado")
@@ -183,7 +183,7 @@ async def upload_capa_jogo(jogo_id: int, file: UploadFile = File(...)):
 @app.post("/jogos/{jogo_id}/fundo", status_code=200)
 async def upload_fundo_jogo(jogo_id: int, file: UploadFile = File(...)):
     jogos = carregar_jogos()
-    jogo = next((j for j in jogos if j.id == jogo_id), None)
+    jogo = next((j for j in jogos if j["id"] == jogo_id), None)
 
     if not jogo:
         raise HTTPException(status_code=404, detail="Jogo não encontrado")
@@ -209,7 +209,7 @@ async def upload_imagens_extras(
     files: List[UploadFile] = File(...)
 ):
     jogos = carregar_jogos()
-    jogo = next((j for j in jogos if j.id == jogo_id), None)
+    jogo = next((j for j in jogos if j["id"] == jogo_id), None)
 
     if not jogo:
         raise HTTPException(status_code=404, detail="Jogo não encontrado")
@@ -240,7 +240,7 @@ async def upload_imagens_extras(
 @app.get("/jogos/{jogo_id}", response_model=Jogo)
 def obter_detalhes_do_jogo(jogo_id: int):
     jogos = carregar_jogos()
-    jogo_encontrado = next((j for j in jogos if j.id == jogo_id), None)
+    jogo_encontrado = next((j for j in jogos if j["id"] == jogo_id), None)
 
     if not jogo_encontrado:
         raise HTTPException(status_code=404, detail="Jogo não encontrado")
@@ -281,7 +281,7 @@ def listar_jogos_da_colecao(colecao_id: str):
     """
     todos_jogos = carregar_jogos()
     jogos_na_colecao = [
-        jogo for jogo in todos_jogos if colecao_id in jogo.colecoes
+        jogo for jogo in todos_jogos if colecao_id in jogo["colecoes"]
     ]
     return jogos_na_colecao
 
@@ -293,7 +293,7 @@ def listar_tags_unicas():
     jogos = carregar_jogos()
     todas_as_tags = set()
     for jogo in jogos:
-        for tag in jogo.tags:
+        for tag in jogo["tags"]:
             todas_as_tags.add(tag)
     return sorted(list(todas_as_tags))
 
@@ -309,7 +309,7 @@ def listar_jogos_aleatorios(tags: Optional[str] = None):
         tags_requisitadas = set(tags.lower().split(","))
         jogos = [
             jogo for jogo in jogos
-            if tags_requisitadas.issubset({t.lower() for t in jogo.tags})
+            if tags_requisitadas.issubset({t.lower() for t in jogo["tags"]})
         ]
 
     # Seleção aleatória
@@ -324,7 +324,7 @@ def criar_novo_jogo(jogo_dados: Jogo):
     """Cria uma nova entrada de jogo no banco de dados."""
     jogos = carregar_jogos()
     # Define um novo ID para o jogo
-    novo_id = max([j.id for j in jogos], default=0) + 1
+    novo_id = max([j["id"] for j in jogos], default=0) + 1
     jogo_dados.id = novo_id
 
     jogos.append(jogo_dados)
@@ -335,7 +335,7 @@ def criar_novo_jogo(jogo_dados: Jogo):
 def atualizar_jogo(jogo_id: int, jogo_atualizado: Jogo):
     """Atualiza os dados de um jogo existente."""
     jogos = carregar_jogos()
-    index_do_jogo = next((i for i, j in enumerate(jogos) if j.id == jogo_id), -1)
+    index_do_jogo = next((i for i, j in enumerate(jogos) if j["id"] == jogo_id), -1)
 
     if index_do_jogo == -1:
         raise HTTPException(status_code=404, detail="Jogo não encontrado")
@@ -350,7 +350,7 @@ def atualizar_jogo(jogo_id: int, jogo_atualizado: Jogo):
 def remover_jogo(jogo_id: int):
     """Remove um jogo do banco de dados."""
     jogos = carregar_jogos()
-    jogos_filtrados = [j for j in jogos if j.id != jogo_id]
+    jogos_filtrados = [j for j in jogos if j["id"] != jogo_id]
 
     if len(jogos_filtrados) == len(jogos):
         raise HTTPException(status_code=404, detail="Jogo não encontrado")
