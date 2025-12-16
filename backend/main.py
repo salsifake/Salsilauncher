@@ -18,6 +18,7 @@ from backend.models.Links import Link
 from backend.utils.image_processing import save_webp_image
 from backend.data.paths import get_capa_path, get_fundo_path, get_extra_image_path
 from backend.config.settings import get_settings
+from backend.core.exceptions import http_exception_handler, unhandled_exception_handler
 
 
 # Inicialização do FastAPI
@@ -25,6 +26,10 @@ app = FastAPI(title="Salsilauncher API")
 DB_FILE = "jogos_db.json"
 
 settings = get_settings()
+
+# Configuração dos manipuladores de exceção
+app.add_exception_handler(HTTPException, http_exception_handler)
+app.add_exception_handler(Exception, unhandled_exception_handler)
 
 # --- CORS Middleware ---
 app.add_middleware(
