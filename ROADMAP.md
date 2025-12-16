@@ -7,7 +7,7 @@
 - [x] Estruturar rotas iniciais e layout básico
 - [x] Implementar endpoint GET /games com dados estáticos
 - [x] Configurar ambiente de desenvolvimento
-- [ ] Criar função centralizada para carregar variáveis de ambiente (env loader)
+- [X] Criar função centralizada para carregar variáveis de ambiente (env loader)
 - [ ] Padronizar respostas de erro com um handler global (middleware)
 - [ ] Implementar logs mínimos no backend (info, warning, error)
 - [X] Criar estrutura de testes iniciais (mesmo que placeholders)

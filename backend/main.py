@@ -17,43 +17,32 @@ from backend.models.AvaliacaoDetalhada import AvaliacaoDetalhada
 from backend.models.Links import Link
 from backend.utils.image_processing import save_webp_image
 from backend.data.paths import get_capa_path, get_fundo_path, get_extra_image_path
+from backend.config.settings import get_settings
 
 
 # Inicialização do FastAPI
 app = FastAPI(title="Salsilauncher API")
 DB_FILE = "jogos_db.json"
 
+settings = get_settings()
+
 # --- CORS Middleware ---
-
-# ler origens permitidas do .env
-origins_env = os.getenv("ALLOWED_ORIGINS", "")
-if origins_env.strip():
-    allowed_origins = [o.strip() for o in origins_env.split(",")]
-else:
-    allowed_origins = [
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-    ]
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allowed_origins,
+    allow_origins=settings["ALLOWED_ORIGINS"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Configuração do diretório de mídia
-BASE_DIR = Path(__file__).resolve().parent
-MIDIA_DIR = BASE_DIR / "midia_launcher"
+# --- Diretório de mídia (bootstrap) ---
+settings["MIDIA_DIR"].mkdir(parents=True, exist_ok=True)
 
-# cria se estiver faltando
-MIDIA_DIR.mkdir(exist_ok=True)
-
-app.mount("/midia_launcher", StaticFiles(directory=MIDIA_DIR), name="midia")
-
+app.mount(
+    "/midia_launcher",
+    StaticFiles(directory=settings["MIDIA_DIR"]),
+    name="midia",
+)
 #  --- ENDPOINTS DA API ---
 
 @app.get("/jogos/aleatorio", response_model=List[Jogo])
