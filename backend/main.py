@@ -20,6 +20,8 @@ from backend.data.paths import get_capa_path, get_fundo_path, get_extra_image_pa
 from backend.config.settings import get_settings
 from backend.core.exceptions import http_exception_handler, unhandled_exception_handler
 from backend.core.logging import logger
+from backend.schemas.jogo import JogoCreate, JogoUpdate, JogoRead
+
 
 
 # Inicialização do FastAPI
@@ -52,7 +54,7 @@ app.mount(
 
 #  --- ENDPOINTS DA API ---
 
-@app.get("/jogos/aleatorio", response_model=List[Jogo])
+@app.get("/jogos/aleatorio", response_model=List[JogoRead])
 def listar_jogos_aleatorios(tags: Optional[str] = Query(None, description="Tags separadas por vírgula")):
     """
     Retorna até 5 jogos aleatórios, aplicando filtro por tags se fornecido
@@ -80,7 +82,7 @@ def listar_jogos_aleatorios(tags: Optional[str] = Query(None, description="Tags 
     return random.sample(jogos, quantidade)
 
 
-@app.get("/jogos", response_model=List[Jogo])
+@app.get("/jogos", response_model=List[JogoRead])
 def listar_jogos(q: Optional[str] = None, tags: Optional[str] = None):
     logger.info("GET /jogos chamado (q=%s, tags=%s)", q, tags)
 
@@ -284,7 +286,7 @@ async def upload_imagens_extras(
     }
 
 
-@app.get("/jogos/{jogo_id}", response_model=Jogo)
+@app.get("/jogos/{jogo_id}", response_model=JogoRead)
 def obter_detalhes_do_jogo(jogo_id: int):
     logger.info("GET /jogos/%d chamado", jogo_id)
 
@@ -330,7 +332,7 @@ def criar_colecao(colecao: Colecao):
     return colecao
 
 
-@app.get("/colecoes/{colecao_id}/jogos", response_model=List[Jogo])
+@app.get("/colecoes/{colecao_id}/jogos", response_model=List[JogoRead])
 def listar_jogos_da_colecao(colecao_id: str):
     """
     Retorna todos os jogos que pertencem a uma coleção específica
@@ -359,8 +361,8 @@ def listar_tags_unicas():
     return sorted(list(todas_as_tags))
 
 
-@app.post("/jogos", response_model=Jogo, status_code=201)
-def criar_novo_jogo(jogo_dados: Jogo):
+@app.post("/jogos", response_model=JogoRead, status_code=201)
+def criar_novo_jogo(jogo_dados: JogoCreate):
     """Cria uma nova entrada de jogo no banco de dados."""
     logger.info("POST /jogos chamado (nome=%s)", jogo_dados.nome)
 
@@ -370,29 +372,34 @@ def criar_novo_jogo(jogo_dados: Jogo):
 
     jogo_dict = jogo_dados.model_dump()
     jogo_dict["id"] = novo_id
+    jogo_dict["imagem_capa"] = None
+    jogo_dict["imagem_fundo"] = None
+    jogo_dict["imagens_extras"] = []
 
     jogos.append(jogo_dict)
     salvar_jogos(jogos)
     return jogo_dict
 
 
-@app.put("/jogos/{jogo_id}", response_model=Jogo)
-def atualizar_jogo(jogo_id: int, jogo_atualizado: Jogo):
+@app.put("/jogos/{jogo_id}", response_model=JogoRead)
+def atualizar_jogo(jogo_id: int, jogo_atualizado: JogoUpdate):
     """Atualiza os dados de um jogo existente."""
     logger.info("PUT /jogos/%d chamado", jogo_id)
 
     jogos = carregar_jogos()
-    index_do_jogo = next((i for i, j in enumerate(jogos) if j["id"] == jogo_id), -1)
+    index = next((i for i, j in enumerate(jogos) if j["id"] == jogo_id), -1)
 
-    if index_do_jogo == -1:
+    if index == -1:
         logger.warning("Tentativa de atualizar jogo inexistente (id=%d)", jogo_id)
         raise HTTPException(status_code=404, detail="Jogo não encontrado")
 
-    # Garante que o ID não seja alterado
-    jogo_atualizado.id = jogo_id
-    jogos[index_do_jogo] = jogo_atualizado.dict()
+    dados_atualizados = jogo_atualizado.model_dump(exclude_unset=True)
+
+    for campo, valor in dados_atualizados.items():
+        jogos[index][campo] = valor
+
     salvar_jogos(jogos)
-    return jogo_atualizado
+    return jogos[index]
 
 
 @app.delete("/jogos/{jogo_id}", status_code=204)

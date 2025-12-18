@@ -22,7 +22,7 @@ async def http_exception_handler(request: Request, exc: HTTPException):
     )
 
 
-async def global_exception_handler(request: Request, exc: Exception):
+async def unhandled_exception_handler(request: Request, exc: Exception):
     logger.error(
         "Erro inesperado em %s %s: %s",
         request.method,
