@@ -1,30 +1,39 @@
+import logging
 from fastapi import Request, HTTPException
 from fastapi.responses import JSONResponse
-import logging
+
+logger = logging.getLogger(__name__)
 
 
-def http_exception_handler(request: Request, exc: HTTPException):
-    logging.warning(
-        f"HTTP {exc.status_code} | {request.method} {request.url.path} | {exc.detail}"
+async def http_exception_handler(request: Request, exc: HTTPException):
+    logger.warning(
+        "HTTPException %s em %s %s: %s",
+        exc.status_code,
+        request.method,
+        request.url.path,
+        exc.detail
     )
     return JSONResponse(
         status_code=exc.status_code,
         content={
-            "error": "HTTP Error",
-            "detail": exc.detail,
-        },
+            "error": exc.detail,
+            "status_code": exc.status_code
+        }
     )
 
 
-def unhandled_exception_handler(request: Request, exc: Exception):
-    logging.error(
-        f"Unhandled exception | {request.method} {request.url.path}",
-        exc_info=True,
+async def global_exception_handler(request: Request, exc: Exception):
+    logger.error(
+        "Erro inesperado em %s %s: %s",
+        request.method,
+        request.url.path,
+        exc,
+        exc_info=True
     )
     return JSONResponse(
         status_code=500,
         content={
-            "error": "Internal Server Error",
-            "detail": "Ocorreu um erro inesperado no servidor.",
-        },
+            "error": "Erro interno do servidor",
+            "status_code": 500
+        }
     )
