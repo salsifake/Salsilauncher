@@ -1,5 +1,3 @@
-# backend/main.py
-
 import os
 import json, shutil, tempfile
 from fastapi import FastAPI, Body, HTTPException, File, UploadFile, Query
@@ -7,15 +5,16 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from typing import List, Optional
-from PIL import Image
+from PIL import Image, UnindentifiedImageError
 import random
+import io
 from backend.data.storage import salvar_jogos, carregar_jogos, salvar_colecoes, carregar_colecoes
 from pathlib import Path
 from backend.models.Jogo import Jogo
 from backend.models.Colecao import Colecao
 from backend.models.AvaliacaoDetalhada import AvaliacaoDetalhada
 from backend.models.Links import Link
-from backend.utils.image_processing import save_webp_image
+from backend.utils.image_processing import save_webp_image, validate_image_upload
 from backend.data.paths import get_capa_path, get_fundo_path, get_extra_image_path
 from backend.config.settings import get_settings
 from backend.core.exceptions import http_exception_handler, unhandled_exception_handler
@@ -194,6 +193,7 @@ def escanear_pasta_por_jogos(caminho: str = Body(..., embed=True)):
 @app.post("/jogos/{jogo_id}/capa", status_code=200)
 async def upload_capa_jogo(jogo_id: int, file: UploadFile = File(...)):
     logger.info("Upload de capa iniciado (jogo_id=%d)", jogo_id)
+    validate_image_upload(file)
 
     jogos = carregar_jogos()
     jogo = next((j for j in jogos if j["id"] == jogo_id), None)
@@ -211,18 +211,19 @@ async def upload_capa_jogo(jogo_id: int, file: UploadFile = File(...)):
         logger.error("Erro ao salvar capa do jogo %d: %s", jogo_id, e)
         raise HTTPException(status_code=500, detail=f"Erro ao processar imagem: {e}")
 
-    jogo.imagem_capa = saved_path.replace("\\", "/")
+    jogo["imagem_capa"] = saved_path.replace("\\", "/")
     salvar_jogos(jogos)
 
     return {
         "status": "Capa atualizada com sucesso!",
-        "caminho_imagem": jogo.imagem_capa
+        "caminho_imagem": jogo["imagem_capa"]
     }
 
 
 @app.post("/jogos/{jogo_id}/fundo", status_code=200)
 async def upload_fundo_jogo(jogo_id: int, file: UploadFile = File(...)):
     logger.info("Upload de fundo iniciado (jogo_id=%d)", jogo_id)
+    validate_image_upload(file)
 
     jogos = carregar_jogos()
     jogo = next((j for j in jogos if j["id"] == jogo_id), None)
@@ -268,6 +269,7 @@ async def upload_imagens_extras(
         start_index = len(jogo.imagens_extras)
 
         for i, file in enumerate(files):
+            validate_image_upload(file)
             output_path = get_extra_image_path(jogo_id, start_index + i)
             saved = save_webp_image(file.file, output_path, size=(1280, 720))
             saved = saved.replace("\\", "/")
