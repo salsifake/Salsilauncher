@@ -380,6 +380,7 @@ def criar_novo_jogo(jogo_dados: JogoCreate):
 
     jogos.append(jogo_dict)
     salvar_jogos(jogos)
+
     return jogo_dict
 
 
@@ -398,7 +399,8 @@ def atualizar_jogo(jogo_id: int, jogo_atualizado: JogoUpdate):
     dados_atualizados = jogo_atualizado.model_dump(exclude_unset=True)
 
     for campo, valor in dados_atualizados.items():
-        jogos[index][campo] = valor
+        if campo in jogos[index]:
+            jogos[index][campo] = valor
 
     salvar_jogos(jogos)
     return jogos[index]

@@ -13,8 +13,8 @@ class JogoBase(BaseModel):
 
 
 class JogoCreate(JogoBase):
-    caminho_executavel: str
-    caminho_pasta: str
+    caminho_executavel: Optional[str] = None
+    caminho_pasta: Optional[str] = None
 
 
 class JogoUpdate(BaseModel):
@@ -32,8 +32,8 @@ class JogoUpdate(BaseModel):
 class JogoRead(JogoBase):
     id: int
 
-    caminho_executavel: str
-    caminho_pasta: str
+    caminho_executavel: Optional[str] = None
+    caminho_pasta: Optional[str] = None
 
     imagem_capa: Optional[str] = None
     imagem_fundo: Optional[str] = None
