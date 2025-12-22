@@ -8,7 +8,8 @@ from typing import List, Optional
 from PIL import Image, UnindentifiedImageError
 import random
 import io
-from backend.data.storage import salvar_jogos, carregar_jogos, salvar_colecoes, carregar_colecoes
+from Salsilauncher.backend.utils.media_cleanup import remover_assets_jogo
+from backend.data.storage import salvar_jogos, carregar_jogos, salvar_colecoes, carregar_colecoes, next_id, JOGOS_META, COLECOES_META
 from pathlib import Path
 from backend.models.Jogo import Jogo
 from backend.models.Colecao import Colecao
@@ -19,7 +20,8 @@ from backend.data.paths import get_capa_path, get_fundo_path, get_extra_image_pa
 from backend.config.settings import get_settings
 from backend.core.exceptions import http_exception_handler, unhandled_exception_handler
 from backend.core.logging import logger
-from backend.schemas.jogo import JogoCreate, JogoUpdate, JogoRead
+from backend.schemas.jogo import JogoCreate, JogoUpdate, JogoRead, Colecao, ColecaoCreate
+from backend.utils.scan_validation import validar_scan_path, scan_path
 
 
 
@@ -133,6 +135,9 @@ def escanear_pasta_por_jogos(caminho: str = Body(..., embed=True)):
     Cria jogos automaticamente para qualquer pasta nova detectada.
     """
     logger.info("POST /scan chamado (caminho=%s)", caminho)
+    
+    scan_path = Path(caminho)
+    validar_scan_path(scan_path)
 
     if not os.path.isdir(caminho):
         logger.error("Caminho inválido informado no scan: %s", caminho)
@@ -159,7 +164,7 @@ def escanear_pasta_por_jogos(caminho: str = Body(..., embed=True)):
 
     # Criar o objeto Jogo a partir da pasta
     def criar_jogo_para_pasta(pasta, executavel, jogos):
-        novo_id = max((j["id"] for j in jogos), default=0) + 1
+        novo_id = next_id(JOGOS_META)
         nome = os.path.basename(pasta)
         return Jogo(
             id=novo_id,
@@ -312,26 +317,24 @@ def listar_colecoes():
 
 
 @app.post("/colecoes", response_model=Colecao, status_code=201)
-def criar_colecao(colecao: Colecao):
-    """
-    Cria uma nova coleção e garante que o ID seja único e salva no banco
-    """
-    logger.info("POST /colecoes chamado (id=%s)", colecao.id)
+def criar_colecao(colecao: ColecaoCreate):
+    novo_id = next_id(COLECOES_META)
+
+    logger.info("POST /colecoes chamado (id=%s)", novo_id)
 
     colecoes = carregar_colecoes()
 
-    # Verificação de ID duplicado
-    if any(c.id == colecao.id for c in colecoes):
-        logger.warning("Tentativa de criar coleção duplicada (id=%s)", colecao.id)
-        raise HTTPException(
-            status_code=400,
-            detail="Uma coleção com este ID já existe."
-        )
+    nova_colecao = Colecao(
+        id=novo_id,
+        nome=colecao.nome,
+        jogos=colecao.jogos,
+    )
 
-    colecoes.append(colecao)
+    colecoes.append(nova_colecao)
     salvar_colecoes(colecoes)
 
-    return colecao
+    return nova_colecao
+
 
 
 @app.get("/colecoes/{colecao_id}/jogos", response_model=List[JogoRead])
@@ -370,7 +373,7 @@ def criar_novo_jogo(jogo_dados: JogoCreate):
 
     jogos = carregar_jogos()
 
-    novo_id = max((j["id"] for j in jogos), default=0) + 1
+    novo_id = next_id(JOGOS_META)
 
     jogo_dict = jogo_dados.model_dump()
     jogo_dict["id"] = novo_id
@@ -409,14 +412,16 @@ def atualizar_jogo(jogo_id: int, jogo_atualizado: JogoUpdate):
 @app.delete("/jogos/{jogo_id}", status_code=204)
 def remover_jogo(jogo_id: int):
     """Remove um jogo do banco de dados."""
-    logger.info("DELETE /jogos/%d chamado", jogo_id)
-
     jogos = carregar_jogos()
-    jogos_filtrados = [j for j in jogos if j["id"] != jogo_id]
 
-    if len(jogos_filtrados) == len(jogos):
+    jogo_removido = next((j for j in jogos if j["id"] == jogo_id), None)
+    if not jogo_removido:
         logger.warning("Tentativa de remover jogo inexistente (id=%d)", jogo_id)
         raise HTTPException(status_code=404, detail="Jogo não encontrado")
 
+    # limpar assets antes de remover do banco
+    remover_assets_jogo(jogo_removido)
+
+    jogos_filtrados = [j for j in jogos if j["id"] != jogo_id]
     salvar_jogos(jogos_filtrados)
-    return  # Retorna uma resposta vazia com status 204 No Content
+    return

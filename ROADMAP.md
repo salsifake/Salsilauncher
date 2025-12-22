@@ -9,7 +9,7 @@
 - [x] Configurar ambiente de desenvolvimento
 - [X] Criar função centralizada para carregar variáveis de ambiente (env loader)
 - [X] Padronizar respostas de erro com um handler global (middleware)
-- [ ] Implementar logs mínimos no backend (info, warning, error)
+- [X] Implementar logs mínimos no backend (info, warning, error)
 - [X] Criar estrutura de testes iniciais (mesmo que placeholders)
 
 
@@ -90,14 +90,14 @@ if not os.path.exists(caminho) or not os.path.isdir(caminho):
 
 ### Prioridade alta
 - [X] Gravação atômica + file lock nas funções salvar_jogos/salvar_colecoes.
-- [ ] Validação robusta de uploads (content_type, tamanho, Image.verify, salvar por hash).
-- [ ] Criar schemas separados JogoCreate, JogoUpdate, JogoRead para evitar clients definirem campos proibidos.
-- [ ] ID generation seguro: migrar para UUID ou controlar geração dentro de DB. Se continuar com ints, usar DB autoincrement.
-- [ ] Adicionar logging (uso do logging), e tratamento de exceções globais.
+- [X] Validação robusta de uploads (content_type, tamanho, Image.verify, salvar por hash).
+- [X] Criar schemas separados JogoCreate, JogoUpdate, JogoRead para evitar clients definirem campos proibidos.
+- [X] ID generation seguro: migrar para UUID ou controlar geração dentro de DB. Se continuar com ints, usar DB autoincrement.
+- [X] Adicionar logging (uso do logging), e tratamento de exceções globais.
 - [ ] Implementar banco de dados SQLite
 
 ### Prioridade Média
-- [ ] Validar e sanitizar entrada do /scan (caminho com existência/permissões).
+- [X] Validar e sanitizar entrada do /scan (caminho com existência/permissões).
 - [ ] Remover/limpar assets no DELETE (apagar capa webp e outros arquivos órfãos).
 - [ ] Adicionar paginação em GET /jogos (query params limit e offset ou page).
 - [X] CORS configurável via variável de ambiente.

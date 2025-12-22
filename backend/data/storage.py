@@ -5,6 +5,7 @@ from pathlib import Path
 from filelock import FileLock
 from typing import Any, List
 
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 DATA_DIR = BASE_DIR / "data"
@@ -18,6 +19,9 @@ COLECOES_DB = DATA_DIR / "colecoes_db.json"
 
 LOCK_JOGOS = FileLock(str(JOGOS_DB) + ".lock")
 LOCK_COLECOES = FileLock(str(COLECOES_DB) + ".lock")
+
+JOGOS_META = DATA_DIR / "jogos_meta.json"
+COLECOES_META = DATA_DIR / "colecoes_meta.json"
 
 
 # --- Funções auxiliares ---
@@ -72,3 +76,17 @@ def carregar_colecoes() -> List[dict]:
 def salvar_colecoes(colecoes: List[dict]):
     with LOCK_COLECOES:
         _atomic_write(COLECOES_DB, colecoes)
+
+def next_id(meta_path: Path) -> int:
+    lock = FileLock(str(meta_path) + ".lock")
+
+    with lock:
+        if not meta_path.exists():
+            data = {"last_id": 0}
+        else:
+            data = _safe_load(meta_path)
+
+        data["last_id"] += 1
+        _atomic_write(meta_path, data)
+
+        return data["last_id"]
