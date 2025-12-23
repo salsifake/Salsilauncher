@@ -98,8 +98,8 @@ if not os.path.exists(caminho) or not os.path.isdir(caminho):
 
 ### Prioridade Média
 - [X] Validar e sanitizar entrada do /scan (caminho com existência/permissões).
-- [ ] Remover/limpar assets no DELETE (apagar capa webp e outros arquivos órfãos).
-- [ ] Adicionar paginação em GET /jogos (query params limit e offset ou page).
+- [X] Remover/limpar assets no DELETE (apagar capa webp e outros arquivos órfãos).
+- [X] Adicionar paginação em GET /jogos (query params limit e offset ou page).
 - [X] CORS configurável via variável de ambiente.
 
 ### Prioridade Baixa

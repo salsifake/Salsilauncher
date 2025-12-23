@@ -53,14 +53,33 @@ app.mount(
     name="midia",
 )
 
+
 #  --- ENDPOINTS DA API ---
 
+
+# Itens por página permitidos:
+ALLOWED_PAGE_SIZES = {10, 25, 50, 100}
+
+
 @app.get("/jogos/aleatorio", response_model=List[JogoRead])
-def listar_jogos_aleatorios(tags: Optional[str] = Query(None, description="Tags separadas por vírgula")):
+def listar_jogos_aleatorios(
+    tags: Optional[str] = Query(None, description="Tags separadas por vírgula"),
+    page_size: int = Query(10)
+):
     """
-    Retorna até 5 jogos aleatórios, aplicando filtro por tags se fornecido
+    Retorna jogos aleatórios, aplicando filtro por tags se fornecido
     """
-    logger.info("GET /jogos/aleatorio chamado (tags=%s)", tags)
+    logger.info(
+        "GET /jogos/aleatorio chamado (tags=%s, page_size=%d)",
+        tags, page_size
+    )
+
+    # validação explícita do page_size
+    if page_size not in (10, 25, 50, 100):
+        raise HTTPException(
+            status_code=400,
+            detail="page_size inválido. Valores permitidos: 10, 25, 50, 100"
+        )
 
     jogos = carregar_jogos()
 
@@ -79,53 +98,68 @@ def listar_jogos_aleatorios(tags: Optional[str] = Query(None, description="Tags 
         logger.warning("Nenhum jogo encontrado para seleção aleatória")
         return []
 
-    quantidade = min(5, len(jogos))
+    quantidade = min(page_size, len(jogos))
     return random.sample(jogos, quantidade)
 
 
-@app.get("/jogos", response_model=List[JogoRead])
-def listar_jogos(q: Optional[str] = None, tags: Optional[str] = None):
-    logger.info("GET /jogos chamado (q=%s, tags=%s)", q, tags)
+
+@app.get("/jogos")
+def listar_jogos(
+    q: Optional[str] = None,
+    tags: Optional[str] = None,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(25)
+):
+    logger.info(
+        "GET /jogos chamado (q=%s, tags=%s, page=%d, page_size=%d)",
+        q, tags, page, page_size
+    )
+
+    # validação explícita do page_size
+    if page_size not in (10, 25, 50, 100):
+        raise HTTPException(
+            status_code=400,
+            detail="page_size inválido. Valores permitidos: 10, 25, 50, 100"
+        )
 
     jogos = carregar_jogos()
+
+    # filtro por texto
+    if q:
+        q_lower = q.lower()
+        jogos = [
+            jogo for jogo in jogos
+            if q_lower in jogo["nome"].lower()
+        ]
 
     # filtro por tags
     if tags:
         tags_requisitadas = {t.strip().lower() for t in tags.split(",")}
         jogos = [
             jogo for jogo in jogos
-            if tags_requisitadas.issubset({t.lower() for t in jogo["tags"]})
+            if tags_requisitadas.issubset(
+                {t.lower() for t in jogo.get("tags", [])}
+            )
         ]
 
-    # busca por texto com prioridade
-    if q:
-        termo = q.lower()
-        resultados = []
+    total = len(jogos)
 
-        for jogo in jogos:
-            score = 0
+    # paginação (page é 1-based)
+    offset = (page - 1) * page_size
+    limite = offset + page_size
 
-            if termo in jogo["nome"].lower():
-                score += 5
-            if any(termo in t.lower() for t in jogo.get("tags", [])):
-                score += 3
-            if jogo.get("desenvolvedor") and termo in jogo["desenvolvedor"].lower():
-                score += 2
-            if jogo.get("studio") and termo in jogo["studio"].lower():
-                score += 1
-            if jogo.get("descricao") and termo in jogo.get("descricao", "").lower():
-                score += 1
-            if any(termo in link["nome"].lower() for link in jogo.get("links", [])):
-                score += 1
+    jogos_paginados = jogos[offset:limite]
 
-            if score > 0:
-                resultados.append((jogo, score))
+    total_pages = (total + page_size - 1) // page_size
 
-        resultados.sort(key=lambda x: x[1], reverse=True)
-        logger.info("Busca retornou %d resultados", len(resultados))
-        return [j for j, _ in resultados]
+    return {
+        "items": jogos_paginados,
+        "page": page,
+        "page_size": page_size,
+        "total": total,
+        "total_pages": total_pages
+    }
 
-    return jogos
 
 
 @app.post("/scan")
@@ -138,10 +172,6 @@ def escanear_pasta_por_jogos(caminho: str = Body(..., embed=True)):
     
     scan_path = Path(caminho)
     validar_scan_path(scan_path)
-
-    if not os.path.isdir(caminho):
-        logger.error("Caminho inválido informado no scan: %s", caminho)
-        raise HTTPException(status_code=400, detail="Caminho inválido ou inexistente.")
 
     jogos = carregar_jogos()
     pastas_existentes = {j.caminho_pasta for j in jogos}
