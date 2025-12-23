@@ -1,35 +1,42 @@
 import os
-import json, shutil, tempfile
-from fastapi import FastAPI, Body, HTTPException, File, UploadFile, Query
+from fastapi import Depends, FastAPI, Body, HTTPException, File, UploadFile, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field
 from typing import List, Optional
-from PIL import Image, UnindentifiedImageError
-import random
-import io
-from Salsilauncher.backend.utils.media_cleanup import remover_assets_jogo
-from backend.data.storage import salvar_jogos, carregar_jogos, salvar_colecoes, carregar_colecoes, next_id, JOGOS_META, COLECOES_META
+from Salsilauncher.backend.schemas.colecao import ColecaoCreate, ColecaoJogosUpdate
 from pathlib import Path
-from backend.models.Jogo import Jogo
-from backend.models.Colecao import Colecao
-from backend.models.AvaliacaoDetalhada import AvaliacaoDetalhada
-from backend.models.Links import Link
 from backend.utils.image_processing import save_webp_image, validate_image_upload
 from backend.data.paths import get_capa_path, get_fundo_path, get_extra_image_path
 from backend.config.settings import get_settings
 from backend.core.exceptions import http_exception_handler, unhandled_exception_handler
 from backend.core.logging import logger
-from backend.schemas.jogo import JogoCreate, JogoUpdate, JogoRead, Colecao, ColecaoCreate
-from backend.utils.scan_validation import validar_scan_path, scan_path
-
+from backend.schemas.jogo import JogoCreate, JogoUpdate, JogoRead
+from backend.utils.scan_validation import validar_scan_path
+from backend.db.init_db import init_db
+from sqlmodel import Session, select
+from backend.db.session import get_session
+from backend.db.models.colecao import Colecao
+from backend.db.models.jogo import Jogo
+from backend.db.repositories.jogo_repository import (
+    listar_jogos as repo_listar_jogos,
+    buscar_jogos_por_tags as repo_buscar_jogos_por_tags,
+    obter_jogo_por_id as repo_obter_jogo_por_id,
+    criar_jogo as repo_criar_jogo, 
+    atualizar_jogo as repo_atualizar_jogo,
+    remover_jogo as repo_remover_jogo,
+    jogos_aleatorios as repo_jogos_aleatorios
+)
 
 
 # Inicialização do FastAPI
 app = FastAPI(title="Salsilauncher API")
-DB_FILE = "jogos_db.json"
 
 settings = get_settings()
+
+# Inicialização do banco de dados
+@app.on_event("startup")
+def on_startup():
+    init_db()
 
 # Configuração dos manipuladores de exceção
 app.add_exception_handler(HTTPException, http_exception_handler)
@@ -57,31 +64,18 @@ app.mount(
 #  --- ENDPOINTS DA API ---
 
 
-# Itens por página permitidos:
-ALLOWED_PAGE_SIZES = {10, 25, 50, 100}
-
-
 @app.get("/jogos/aleatorio", response_model=List[JogoRead])
 def listar_jogos_aleatorios(
     tags: Optional[str] = Query(None, description="Tags separadas por vírgula"),
-    page_size: int = Query(10)
+    limit: int = Query(5, ge=1, le=100),
+    session: Session = Depends(get_session)
 ):
     """
-    Retorna jogos aleatórios, aplicando filtro por tags se fornecido
+    Retorna até 5 jogos aleatórios, aplicando filtro por tags se fornecido
     """
-    logger.info(
-        "GET /jogos/aleatorio chamado (tags=%s, page_size=%d)",
-        tags, page_size
-    )
+    logger.info("GET /jogos/aleatorio chamado (tags=%s)", tags)
 
-    # validação explícita do page_size
-    if page_size not in (10, 25, 50, 100):
-        raise HTTPException(
-            status_code=400,
-            detail="page_size inválido. Valores permitidos: 10, 25, 50, 100"
-        )
-
-    jogos = carregar_jogos()
+    jogos = repo_jogos_aleatorios(session, limit=limit)
 
     # Filtragem por tags
     if tags:
@@ -89,7 +83,7 @@ def listar_jogos_aleatorios(
         jogos = [
             jogo for jogo in jogos
             if tags_requisitadas.issubset(
-                {t.lower() for t in jogo.get("tags", [])}
+                {t.lower() for t in jogo.tags}
             )
         ]
 
@@ -98,39 +92,26 @@ def listar_jogos_aleatorios(
         logger.warning("Nenhum jogo encontrado para seleção aleatória")
         return []
 
-    quantidade = min(page_size, len(jogos))
-    return random.sample(jogos, quantidade)
+    return jogos
 
 
 
-@app.get("/jogos")
+
+@app.get("/jogos", response_model=List[JogoRead])
 def listar_jogos(
     q: Optional[str] = None,
     tags: Optional[str] = None,
-    page: int = Query(1, ge=1),
-    page_size: int = Query(25)
+    limit: int = Query(25, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    session: Session = Depends(get_session)
 ):
-    logger.info(
-        "GET /jogos chamado (q=%s, tags=%s, page=%d, page_size=%d)",
-        q, tags, page, page_size
+    logger.info("GET /jogos chamado (q=%s, tags=%s)", q, tags)
+
+    jogos = repo_listar_jogos(
+        session,
+        offset=offset,
+        limit=limit
     )
-
-    # validação explícita do page_size
-    if page_size not in (10, 25, 50, 100):
-        raise HTTPException(
-            status_code=400,
-            detail="page_size inválido. Valores permitidos: 10, 25, 50, 100"
-        )
-
-    jogos = carregar_jogos()
-
-    # filtro por texto
-    if q:
-        q_lower = q.lower()
-        jogos = [
-            jogo for jogo in jogos
-            if q_lower in jogo["nome"].lower()
-        ]
 
     # filtro por tags
     if tags:
@@ -138,32 +119,29 @@ def listar_jogos(
         jogos = [
             jogo for jogo in jogos
             if tags_requisitadas.issubset(
-                {t.lower() for t in jogo.get("tags", [])}
+                {t.lower() for t in jogo.tags}
             )
         ]
 
-    total = len(jogos)
+    # filtro por texto
+    if q:
+        q_lower = q.lower()
+        jogos = [
+            jogo for jogo in jogos
+            if q_lower in jogo.nome.lower()
+            or (jogo.descricao and q_lower in jogo.descricao.lower())
+        ]
 
-    # paginação (page é 1-based)
-    offset = (page - 1) * page_size
-    limite = offset + page_size
+    return jogos
 
-    jogos_paginados = jogos[offset:limite]
-
-    total_pages = (total + page_size - 1) // page_size
-
-    return {
-        "items": jogos_paginados,
-        "page": page,
-        "page_size": page_size,
-        "total": total,
-        "total_pages": total_pages
-    }
 
 
 
 @app.post("/scan")
-def escanear_pasta_por_jogos(caminho: str = Body(..., embed=True)):
+def escanear_pasta_por_jogos(
+    caminho: str = Body(..., embed=True),
+    session: Session = Depends(get_session)
+):
     """
     Varre um diretório em busca de novas pastas contendo executáveis .exe.
     Cria jogos automaticamente para qualquer pasta nova detectada.
@@ -173,7 +151,7 @@ def escanear_pasta_por_jogos(caminho: str = Body(..., embed=True)):
     scan_path = Path(caminho)
     validar_scan_path(scan_path)
 
-    jogos = carregar_jogos()
+    jogos = repo_listar_jogos(session, offset=0, limit=10_000)
     pastas_existentes = {j.caminho_pasta for j in jogos}
     novos = []
 
@@ -193,11 +171,9 @@ def escanear_pasta_por_jogos(caminho: str = Body(..., embed=True)):
         return None
 
     # Criar o objeto Jogo a partir da pasta
-    def criar_jogo_para_pasta(pasta, executavel, jogos):
-        novo_id = next_id(JOGOS_META)
+    def criar_jogo_para_pasta(pasta, executavel):
         nome = os.path.basename(pasta)
         return Jogo(
-            id=novo_id,
             nome=nome,
             caminho_executavel=executavel,
             caminho_pasta=pasta
@@ -209,29 +185,32 @@ def escanear_pasta_por_jogos(caminho: str = Body(..., embed=True)):
         if not exe:
             logger.warning("Pasta ignorada (sem executável): %s", pasta)
             continue  # ignorar pastas sem executável
-        jogo = criar_jogo_para_pasta(pasta, exe, jogos)
-        jogos.append(jogo)
-        novos.append(jogo)
+        jogo = criar_jogo_para_pasta(pasta, exe)
+        criado = repo_criar_jogo(session, jogo)
+        novos.append(criado)
 
     # salvar se mudou
     if novos:
-        salvar_jogos(jogos)
         logger.info("%d novos jogos adicionados via scan", len(novos))
 
     return {
         "status": f"{len(novos)} jogos adicionados.",
-        "adicionados": [j["id"] for j in novos],
-        "total_biblioteca": len(jogos)
+        "adicionados": [j.id for j in novos],
+        "total_biblioteca": len(jogos) + len(novos)
     }
 
 
+
 @app.post("/jogos/{jogo_id}/capa", status_code=200)
-async def upload_capa_jogo(jogo_id: int, file: UploadFile = File(...)):
+async def upload_capa_jogo(
+    jogo_id: int,
+    file: UploadFile = File(...),
+    session: Session = Depends(get_session)
+):
     logger.info("Upload de capa iniciado (jogo_id=%d)", jogo_id)
     validate_image_upload(file)
 
-    jogos = carregar_jogos()
-    jogo = next((j for j in jogos if j["id"] == jogo_id), None)
+    jogo = repo_obter_jogo_por_id(session, jogo_id)
 
     if not jogo:
         logger.warning("Tentativa de upload de capa para jogo inexistente (id=%d)", jogo_id)
@@ -246,22 +225,26 @@ async def upload_capa_jogo(jogo_id: int, file: UploadFile = File(...)):
         logger.error("Erro ao salvar capa do jogo %d: %s", jogo_id, e)
         raise HTTPException(status_code=500, detail=f"Erro ao processar imagem: {e}")
 
-    jogo["imagem_capa"] = saved_path.replace("\\", "/")
-    salvar_jogos(jogos)
+    jogo.capa = saved_path.replace("\\", "/")
+    repo_atualizar_jogo(session, jogo)
 
     return {
         "status": "Capa atualizada com sucesso!",
-        "caminho_imagem": jogo["imagem_capa"]
+        "caminho_imagem": jogo.capa
     }
 
 
+
 @app.post("/jogos/{jogo_id}/fundo", status_code=200)
-async def upload_fundo_jogo(jogo_id: int, file: UploadFile = File(...)):
+async def upload_fundo_jogo(
+    jogo_id: int,
+    file: UploadFile = File(...),
+    session: Session = Depends(get_session)
+):
     logger.info("Upload de fundo iniciado (jogo_id=%d)", jogo_id)
     validate_image_upload(file)
 
-    jogos = carregar_jogos()
-    jogo = next((j for j in jogos if j["id"] == jogo_id), None)
+    jogo = repo_obter_jogo_por_id(session, jogo_id)
 
     if not jogo:
         logger.warning("Tentativa de upload de fundo para jogo inexistente (id=%d)", jogo_id)
@@ -275,24 +258,25 @@ async def upload_fundo_jogo(jogo_id: int, file: UploadFile = File(...)):
         logger.error("Erro ao salvar fundo do jogo %d: %s", jogo_id, e)
         raise HTTPException(status_code=500, detail=f"Erro ao processar imagem: {e}")
 
-    jogo.imagem_fundo = saved_path.replace("\\", "/")
-    salvar_jogos(jogos)
+    jogo.fundo = saved_path.replace("\\", "/")
+    repo_atualizar_jogo(session, jogo)
 
     return {
         "status": "Imagem de fundo atualizada!",
-        "caminho_imagem": jogo.imagem_fundo
+        "caminho_imagem": jogo.fundo
     }
+
 
 
 @app.post("/jogos/{jogo_id}/extras", status_code=200)
 async def upload_imagens_extras(
     jogo_id: int,
-    files: List[UploadFile] = File(...)
+    files: List[UploadFile] = File(...),
+    session: Session = Depends(get_session)
 ):
     logger.info("Upload de imagens extras iniciado (jogo_id=%d, arquivos=%d)", jogo_id, len(files))
 
-    jogos = carregar_jogos()
-    jogo = next((j for j in jogos if j["id"] == jogo_id), None)
+    jogo = repo_obter_jogo_por_id(session, jogo_id)
 
     if not jogo:
         logger.warning("Tentativa de upload de extras para jogo inexistente (id=%d)", jogo_id)
@@ -311,7 +295,7 @@ async def upload_imagens_extras(
             novos_caminhos.append(saved)
             jogo.imagens_extras.append(saved)
 
-        salvar_jogos(jogos)
+        repo_atualizar_jogo(session, jogo)
 
     except Exception as e:
         logger.error("Erro ao salvar imagens extras do jogo %d: %s", jogo_id, e)
@@ -323,135 +307,179 @@ async def upload_imagens_extras(
     }
 
 
+
 @app.get("/jogos/{jogo_id}", response_model=JogoRead)
-def obter_detalhes_do_jogo(jogo_id: int):
+def obter_detalhes_do_jogo(
+    jogo_id: int,
+    session: Session = Depends(get_session)
+):
     logger.info("GET /jogos/%d chamado", jogo_id)
 
-    jogos = carregar_jogos()
-    jogo_encontrado = next((j for j in jogos if j["id"] == jogo_id), None)
+    jogo = repo_obter_jogo_por_id(session, jogo_id)
 
-    if not jogo_encontrado:
+    if not jogo:
         logger.warning("Jogo não encontrado (id=%d)", jogo_id)
         raise HTTPException(status_code=404, detail="Jogo não encontrado")
 
-    return jogo_encontrado
+    return jogo
+
 
 
 @app.get("/colecoes", response_model=List[Colecao])
-def listar_colecoes():
+def listar_colecoes(
+    session: Session = Depends(get_session)
+):
     """
     Carrega e retorna a lista de coleções do banco de dados
     """
     logger.info("GET /colecoes chamado")
-    return carregar_colecoes()
+
+    return session.exec(select(Colecao)).all()
 
 
 @app.post("/colecoes", response_model=Colecao, status_code=201)
-def criar_colecao(colecao: ColecaoCreate):
-    novo_id = next_id(COLECOES_META)
-
-    logger.info("POST /colecoes chamado (id=%s)", novo_id)
-
-    colecoes = carregar_colecoes()
+def criar_colecao(
+    colecao: ColecaoCreate,
+    session: Session = Depends(get_session)
+):
+    logger.info("POST /colecoes chamado (nome=%s)", colecao.nome)
 
     nova_colecao = Colecao(
-        id=novo_id,
-        nome=colecao.nome,
-        jogos=colecao.jogos,
+        nome=colecao.nome
     )
 
-    colecoes.append(nova_colecao)
-    salvar_colecoes(colecoes)
+    session.add(nova_colecao)
+    session.commit()
+    session.refresh(nova_colecao)
 
     return nova_colecao
 
 
-
 @app.get("/colecoes/{colecao_id}/jogos", response_model=List[JogoRead])
-def listar_jogos_da_colecao(colecao_id: str):
+def listar_jogos_da_colecao(
+    colecao_id: int,
+    session: Session = Depends(get_session)
+):
     """
     Retorna todos os jogos que pertencem a uma coleção específica
     """
     logger.info("GET /colecoes/%s/jogos chamado", colecao_id)
 
-    todos_jogos = carregar_jogos()
-    jogos_na_colecao = [
-        jogo for jogo in todos_jogos if colecao_id in jogo["colecoes"]
-    ]
-    return jogos_na_colecao
+    colecao = session.get(Colecao, colecao_id)
+
+    if not colecao:
+        raise HTTPException(status_code=404, detail="Coleção não encontrada")
+
+    return colecao.jogos
+
+@app.post("/colecoes/{colecao_id}/jogos", status_code=200)
+def adicionar_jogos_a_colecao(
+    colecao_id: int,
+    payload: ColecaoJogosUpdate,
+    session: Session = Depends(get_session)
+):
+    """
+    Associa jogos existentes a uma coleção
+    """
+    logger.info(
+        "POST /colecoes/%d/jogos chamado (quantidade=%d)",
+        colecao_id,
+        len(payload.jogos)
+    )
+
+    colecao = session.get(Colecao, colecao_id)
+    if not colecao:
+        raise HTTPException(status_code=404, detail="Coleção não encontrada")
+
+    # Jogos já associados (para evitar duplicação)
+    jogos_existentes = {j.id for j in colecao.jogos}
+
+    for jogo_id in payload.jogos:
+        jogo = session.get(Jogo, jogo_id)
+        if not jogo:
+            logger.warning(
+                "Jogo inexistente ignorado na associação (id=%d)",
+                jogo_id
+            )
+            continue
+
+        if jogo.id not in jogos_existentes:
+            colecao.jogos.append(jogo)
+
+    session.commit()
+    session.refresh(colecao)
+
+    return {
+        "status": "Jogos associados com sucesso",
+        "colecao_id": colecao.id,
+        "total_jogos": len(colecao.jogos)
+    }
+
 
 
 @app.get("/tags", response_model=List[str])
-def listar_tags_unicas():
+def listar_tags_unicas(session: Session = Depends(get_session)):
     """
     Retorna uma lista de todas as tags únicas de todos os jogos
     """
     logger.info("GET /tags chamado")
 
-    jogos = carregar_jogos()
+    jogos = session.exec(select(Jogo)).all()
+
     todas_as_tags = set()
+
     for jogo in jogos:
-        for tag in jogo["tags"]:
+        for tag in jogo.tags:
             todas_as_tags.add(tag)
+
     return sorted(list(todas_as_tags))
 
 
+
 @app.post("/jogos", response_model=JogoRead, status_code=201)
-def criar_novo_jogo(jogo_dados: JogoCreate):
-    """Cria uma nova entrada de jogo no banco de dados."""
-    logger.info("POST /jogos chamado (nome=%s)", jogo_dados.nome)
+def criar_jogo(
+    jogo: JogoCreate,
+    session: Session = Depends(get_session)
+):
+    """
+    Cria um novo jogo e salva no banco
+    """
+    logger.info("POST /jogos chamado (nome=%s)", jogo.nome)
 
-    jogos = carregar_jogos()
-
-    novo_id = next_id(JOGOS_META)
-
-    jogo_dict = jogo_dados.model_dump()
-    jogo_dict["id"] = novo_id
-    jogo_dict["imagem_capa"] = None
-    jogo_dict["imagem_fundo"] = None
-    jogo_dict["imagens_extras"] = []
-
-    jogos.append(jogo_dict)
-    salvar_jogos(jogos)
-
-    return jogo_dict
+    novo_jogo = Jogo.model_validate(jogo)
+    return repo_criar_jogo(session, novo_jogo) 
 
 
 @app.put("/jogos/{jogo_id}", response_model=JogoRead)
-def atualizar_jogo(jogo_id: int, jogo_atualizado: JogoUpdate):
-    """Atualiza os dados de um jogo existente."""
+def atualizar_jogo(
+    jogo_id: int,
+    dados: JogoUpdate,
+    session: Session = Depends(get_session)
+):
     logger.info("PUT /jogos/%d chamado", jogo_id)
 
-    jogos = carregar_jogos()
-    index = next((i for i, j in enumerate(jogos) if j["id"] == jogo_id), -1)
-
-    if index == -1:
-        logger.warning("Tentativa de atualizar jogo inexistente (id=%d)", jogo_id)
+    jogo = repo_obter_jogo_por_id(session, jogo_id)
+    if not jogo:
         raise HTTPException(status_code=404, detail="Jogo não encontrado")
 
-    dados_atualizados = jogo_atualizado.model_dump(exclude_unset=True)
+    dados_dict = dados.model_dump(exclude_unset=True)
+    for campo, valor in dados_dict.items():
+        setattr(jogo, campo, valor)
 
-    for campo, valor in dados_atualizados.items():
-        if campo in jogos[index]:
-            jogos[index][campo] = valor
+    atualizado = repo_atualizar_jogo(session, jogo)
+    return atualizado
 
-    salvar_jogos(jogos)
-    return jogos[index]
 
 
 @app.delete("/jogos/{jogo_id}", status_code=204)
-def remover_jogo(jogo_id: int):
+def remover_jogo(jogo_id: int, session: Session = Depends(get_session)):
     """Remove um jogo do banco de dados."""
-    jogos = carregar_jogos()
+    logger.info("DELETE /jogos/%d chamado", jogo_id)
 
-    jogo_removido = next((j for j in jogos if j["id"] == jogo_id), None)
-    if not jogo_removido:
+    jogo = repo_obter_jogo_por_id(session, jogo_id)
+    if not jogo:
         logger.warning("Tentativa de remover jogo inexistente (id=%d)", jogo_id)
         raise HTTPException(status_code=404, detail="Jogo não encontrado")
 
-    # limpar assets antes de remover do banco
-    remover_assets_jogo(jogo_removido)
-
-    jogos_filtrados = [j for j in jogos if j["id"] != jogo_id]
-    salvar_jogos(jogos_filtrados)
-    return
+    repo_remover_jogo(session, jogo)
+    return  # Retorna uma resposta vazia com status 204 No Content
