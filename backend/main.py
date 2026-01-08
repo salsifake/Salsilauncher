@@ -3,7 +3,7 @@ from fastapi import Depends, FastAPI, Body, HTTPException, File, UploadFile, Que
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from typing import List, Optional
-from Salsilauncher.backend.schemas.colecao import ColecaoCreate, ColecaoJogosUpdate
+from backend.schemas.colecao import ColecaoCreate, ColecaoJogosUpdate
 from pathlib import Path
 from backend.utils.image_processing import save_webp_image, validate_image_upload
 from backend.data.paths import get_capa_path, get_fundo_path, get_extra_image_path

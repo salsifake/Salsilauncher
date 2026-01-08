@@ -2,7 +2,7 @@ from typing import List, Optional
 from sqlmodel import Session, select
 from sqlalchemy.sql import func
 
-from db.models.jogo import Jogo
+from ..models.jogo import Jogo
 
 
 def listar_jogos(

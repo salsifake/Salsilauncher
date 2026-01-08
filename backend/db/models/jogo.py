@@ -1,11 +1,24 @@
-from typing import Optional, List
+from typing import Optional, List, TYPE_CHECKING
 from sqlmodel import SQLModel, Field, Relationship
 from sqlalchemy import Column, JSON
-from backend.db.models.colecao import Colecao, ColecaoJogoLink
 
+if TYPE_CHECKING:
+    from backend.db.models.colecao import Colecao
+
+class ColecaoJogoLink(SQLModel, table=True):
+    colecao_id: int | None = Field(
+        default=None,
+        foreign_key="colecao.id",
+        primary_key=True
+    )
+    jogo_id: int | None = Field(
+        default=None,
+        foreign_key="jogo.id",
+        primary_key=True
+    )
 
 class Jogo(SQLModel, table=True):
-    __tablename__ = "jogos"
+    __tablename__ = "jogo"
 
     id: Optional[int] = Field(
         default=None,
