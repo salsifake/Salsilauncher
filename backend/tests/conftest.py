@@ -1,18 +1,33 @@
 import pytest
 from fastapi.testclient import TestClient
-from sqlmodel import SQLModel, create_engine, Session
+from sqlmodel import SQLModel, Session, create_engine
 
 from backend.main import app
 from backend.db.session import get_session
 
-# SQLite em memória (zera a cada execução)
+# Fixtures
+from fixtures.jogo_fixtures import *
+from fixtures.colecao_fixtures import *
+
+
+# ---------------------------------------------------------------------
+# Banco de dados de testes (SQLite em memória)
+# ---------------------------------------------------------------------
+
+TEST_DATABASE_URL = "sqlite://"
+
 engine = create_engine(
-    "sqlite://",
+    TEST_DATABASE_URL,
     connect_args={"check_same_thread": False},
 )
 
-@pytest.fixture(name="session")
-def session_fixture():
+
+# ---------------------------------------------------------------------
+# Fixture de session (escopo por teste)
+# ---------------------------------------------------------------------
+
+@pytest.fixture()
+def session():
     SQLModel.metadata.create_all(engine)
 
     with Session(engine) as session:
@@ -21,13 +36,18 @@ def session_fixture():
     SQLModel.metadata.drop_all(engine)
 
 
-@pytest.fixture(name="client")
-def client_fixture(session: Session):
-    def override_get_session():
-        yield session
+# ---------------------------------------------------------------------
+# Override da dependência do FastAPI
+# ---------------------------------------------------------------------
 
-    app.dependency_overrides[get_session] = override_get_session
+@pytest.fixture()
+def client(session: Session):
+    def get_session_override():
+        return session
 
-    yield TestClient(app)
+    app.dependency_overrides[get_session] = get_session_override
+
+    with TestClient(app) as client:
+        yield client
 
     app.dependency_overrides.clear()
